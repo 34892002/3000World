@@ -46,8 +46,8 @@
   ],
   "config": {
     "apiKey": "",
-    "apiUrl": "https://api.deepinfra.com/v1/openai/chat/completions",
-    "model": "deepseek-ai/DeepSeek-R1-Turbo"
+    "apiUrl": "https://text.pollinations.ai/openai",
+    "model": "deepseek"
   },
   "metadata": {
     "createdAt": "2024-01-15T10:30:00Z",
