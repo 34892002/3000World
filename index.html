@@ -644,26 +644,50 @@
             const participants = await getSessionParticipants();
             let mentionedChar = null;
             const match = text.match(/@([\p{L}\p{N}_]+)/u);
-            if (match) mentionedChar = participants.find(p => p.name.toLowerCase() === match[1].toLowerCase());
+            if (match) {
+                const mentionedName = match[1];
+                mentionedChar = participants.find(p => p.name === mentionedName || p.name.toLowerCase() === mentionedName.toLowerCase());
+            }
             
             // 构建提示并获取AI响应
             const prompt = await constructPrompt(mentionedChar ? mentionedChar.name : null);
             const responseText = await getAIResponse(prompt);
             $('#chat-history').children().last().remove();
             
-            // 处理AI响应
-            let respCharName = null, content = responseText;
-            const parts = responseText.split(':');
-            const speakingChar = participants.find(p => p.name === parts[0].trim());
+            // 处理AI响应 - 首先清理<think>标签
+            let cleanedResponse = responseText;
+            // 移除<think>...</think>标签及其内容
+            cleanedResponse = cleanedResponse.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
             
-            if (speakingChar && parts.length > 1) {
-                respCharName = speakingChar.name;
-                content = parts.slice(1).join(':').trim();
+            let respCharName = null, content = cleanedResponse;
+            const parts = cleanedResponse.split(':');
+            
+            // 如果有@提及，优先让被@的角色回应
+            if (mentionedChar && parts.length > 1) {
+                const firstPart = parts[0].trim();
+                // 检查AI是否按照指定格式回复（角色名: 对话内容）
+                if (firstPart === mentionedChar.name || firstPart.toLowerCase() === mentionedChar.name.toLowerCase()) {
+                    respCharName = mentionedChar.name;
+                    content = parts.slice(1).join(':').trim();
+                } else {
+                    // 如果AI没有按照格式回复，强制设置为被@的角色
+                    respCharName = mentionedChar.name;
+                    content = cleanedResponse;
+                }
+            } else {
+                // 没有@提及时，尝试解析角色名
+                const speakingChar = participants.find(p => p.name === parts[0].trim());
+                if (speakingChar && parts.length > 1) {
+                    respCharName = speakingChar.name;
+                    content = parts.slice(1).join(':').trim();
+                }
             }
             
             // 添加AI响应到聊天界面并保存
-            addMessageToChat('char', content, respCharName);
-            saveMessage(currentState.sessionId, 'char', content, speakingChar?.id, respCharName);
+            const finalCharId = respCharName ? participants.find(p => p.name === respCharName)?.id : null;
+            const displayName = respCharName || (mentionedChar ? mentionedChar.name : null);
+            addMessageToChat('char', content, displayName);
+            saveMessage(currentState.sessionId, 'char', content, finalCharId, displayName);
         } catch (error) {
             console.error('Error:', error);
             $('#chat-history').children().last().remove();
