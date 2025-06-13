@@ -146,7 +146,8 @@
             alertWorldNameEmpty: '世界名称不能为空！', alertSelectWorld: '请从下拉列表中选择一个世界。',
             alertEnterWorldFailed: '进入世界失败', alertConfigSaved: '配置已保存！', alertLangChanged: '语言已切换！',
             charNameCannotBeEmpty: '角色名称不能为空。', groupNeedOneChar: '群聊至少需要1个角色。',
-            deleteConfirm: '确认删除？', deleteChar: '删除角色', deleteGroup: '删除群组', deleteEntry: '删除条目'
+            deleteConfirm: '确认删除？', deleteChar: '删除角色', deleteGroup: '删除群组', deleteEntry: '删除条目',
+            playerCharLabel: '设为主角（用户将以此角色身份对话）', playerCharCrown: '👑 主角'
         },
         'en-US': {
             langSwitcherLabel: 'Language: English', appTitle: '3000World',
@@ -163,7 +164,8 @@
             alertWorldNameEmpty: 'World name cannot be empty!', alertSelectWorld: 'Please select a world from the dropdown.',
             alertEnterWorldFailed: 'Failed to enter world', alertConfigSaved: 'Settings saved!', alertLangChanged: 'Language Changed!',
             charNameCannotBeEmpty: 'Character name cannot be empty.', groupNeedOneChar: 'Group chat needs at least one character.',
-            deleteConfirm: 'Confirm Deletion?', deleteChar: 'Delete Character', deleteGroup: 'Delete Group', deleteEntry: 'Delete Entry'
+            deleteConfirm: 'Confirm Deletion?', deleteChar: 'Delete Character', deleteGroup: 'Delete Group', deleteEntry: 'Delete Entry',
+            playerCharLabel: 'Set as player character (user will chat as this character)', playerCharCrown: '👑 Player'
         }
     };
 
@@ -201,7 +203,8 @@
     let currentState = {
         sessionId: null, sessionType: null,
         characterCache: new Map(),
-        worldConfig: { apiKey: '', apiUrl: '', model: '' }
+        worldConfig: { apiKey: '', apiUrl: '', model: '' },
+        playerCharacter: null // 存储主角角色信息
     };
 
     // --- UTILITY: TOAST NOTIFICATION ---
@@ -291,10 +294,15 @@
         const model = await new Promise(r => { modelReq.onsuccess = () => r(modelReq.result); modelReq.onerror = () => r(undefined); });
 
         if (apiKey === undefined || apiUrl === undefined || model === undefined) {
+            // const defaultConfig = {
+            //     apiKey: '',
+            //     apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
+            //     model: 'gemini-2.0-flash'
+            // };
             const defaultConfig = {
                 apiKey: '',
-                apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
-                model: 'gemini-2.0-flash'
+                apiUrl: 'https://api.deepinfra.com/v1/openai/chat/completions',
+                model: 'deepseek-ai/DeepSeek-R1-Turbo'
             };
             const writeTx = db.transaction('config', 'readwrite');
             const writeStore = writeTx.objectStore('config');
@@ -355,23 +363,54 @@
 
     async function cacheAllCharacters() {
         currentState.characterCache.clear();
+        currentState.playerCharacter = null; // 重置主角信息
         const store = getStore('characters', 'readonly');
         const chars = await new Promise((res, rej) => {
             const req = store.getAll(); req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error);
         });
-        for (const char of chars) currentState.characterCache.set(char.id, char);
+        for (const char of chars) {
+            currentState.characterCache.set(char.id, char);
+            // 如果是主角，更新主角信息
+            if (char.isPlayer) {
+                currentState.playerCharacter = char;
+            }
+        }
     }
     
     function populateEditors() {
         const t = i18n[currentLang];
         $('#config-editor').html(`<h3 class="text-xl font-bold mb-4">${t.configEditorTitle}</h3><div><label for="config-api-key" class="block text-sm font-medium">${t.apiKeyLabel}</label><input type="text" id="config-api-key" class="w-full mt-1 p-2 bg-gray-700 rounded-lg"></div><div><label for="config-api-url" class="block text-sm font-medium">${t.apiUrlLabel}</label><input type="text" id="config-api-url" class="w-full mt-1 p-2 bg-gray-700 rounded-lg"></div><div><label for="config-model" class="block text-sm font-medium">${t.modelLabel}</label><input type="text" id="config-model" class="w-full mt-1 p-2 bg-gray-700 rounded-lg"></div><div class="flex"><button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">${t.saveConfigBtn}</button></div>`);
-        $('#char-editor').html(`<input type="hidden" id="char-id"><div><label for="char-name" class="block text-sm font-medium">角色名称</label><input type="text" id="char-name" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></div><div><label for="char-persona" class="block text-sm font-medium">角色设定</label><textarea id="char-persona" rows="8" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></textarea></div><div><label for="char-greeting" class="block text-sm font-medium">开场白</label><textarea id="char-greeting" rows="4" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></textarea></div><div class="flex space-x-2"><button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">保存角色</button><button type="button" id="delete-char-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg hidden" data-i18n="deleteChar">删除角色</button></div>`);
+        $('#char-editor').html(`<input type="hidden" id="char-id"><div><label for="char-name" class="block text-sm font-medium">角色名称</label><input type="text" id="char-name" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></div><div><label for="char-persona" class="block text-sm font-medium">角色设定</label><textarea id="char-persona" rows="8" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></textarea></div><div><label for="char-greeting" class="block text-sm font-medium">开场白</label><textarea id="char-greeting" rows="4" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></textarea></div><div class="mb-4"><label class="flex items-center space-x-3"><input type="checkbox" id="char-is-player" class="form-checkbox h-5 w-5 bg-gray-800 text-blue-600 rounded"><span class="ml-2" id="player-char-label">${i18n[currentLang].playerCharLabel}</span></label></div><div class="flex space-x-2"><button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">保存角色</button><button type="button" id="delete-char-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg hidden" data-i18n="deleteChar">删除角色</button></div>`);
         $('#world-editor').html(`<input type="hidden" id="world-id"><div><label for="world-keywords" class="block text-sm font-medium">关键词</label><input type="text" id="world-keywords" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></div><div><label for="world-content" class="block text-sm font-medium">内容</label><textarea id="world-content" rows="10" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></textarea></div><div class="flex space-x-2"><button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">保存条目</button><button type="button" id="delete-world-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg hidden" data-i18n="deleteEntry">删除条目</button></div>`);
         $('#group-editor').html(`<input type="hidden" id="group-id"><div><label for="group-name" class="block text-sm font-medium">群组名称</label><input type="text" id="group-name" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></div><div><label class="block text-sm font-medium">选择角色</label><div id="group-char-selection" class="mt-2 p-2 bg-gray-700 rounded-lg max-h-60 overflow-y-auto custom-scrollbar"></div></div><div class="flex space-x-2"><button type="submit" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg">保存群组</button><button type="button" id="delete-group-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg hidden" data-i18n="deleteGroup">删除群组</button></div>`);
     }
     
     function renderListItem($listEl, item, type) {
-        $('<li></li>').addClass(`sidebar-item p-2 rounded-lg cursor-pointer flex justify-between items-center ${currentState.sessionId === `${type}_${item.id}` ? 'active' : ''}`).text(item.name).attr({ 'data-id': item.id, 'data-type': type }).append($('<span></span>').text('✏️').addClass('text-sm opacity-50 hover:opacity-100').on('click', e => { e.stopPropagation(); if (type === 'character') editCharacter(item.id); else if (type === 'group') editGroup(item.id); })).on('click', () => selectSession(item.id, type)).appendTo($listEl);
+        const $li = $('<li></li>').addClass(`sidebar-item p-2 rounded-lg cursor-pointer flex justify-between items-center ${currentState.sessionId === `${type}_${item.id}` ? 'active' : ''}`);
+        
+        // 创建角色名称容器
+        const $nameContainer = $('<div></div>').addClass('flex items-center');
+        
+        // 如果是主角角色，添加特殊标记
+        if (type === 'character' && item.isPlayer) {
+            $nameContainer.append($('<span></span>').text(i18n[currentLang].playerCharCrown.split(' ')[0] + ' ').addClass('mr-1 text-yellow-400'));
+            $li.addClass('border border-yellow-400');
+        }
+        
+        // 添加角色名称
+        $nameContainer.append($('<span></span>').text(item.name));
+        $li.append($nameContainer);
+        
+        // 添加编辑按钮
+        $li.attr({ 'data-id': item.id, 'data-type': type })
+           .append($('<span></span>').text('✏️').addClass('text-sm opacity-50 hover:opacity-100')
+           .on('click', e => { 
+               e.stopPropagation(); 
+               if (type === 'character') editCharacter(item.id); 
+               else if (type === 'group') editGroup(item.id); 
+           }))
+           .on('click', () => selectSession(item.id, type))
+           .appendTo($listEl);
     }
     
     async function loadAndRenderAll() { await cacheAllCharacters(); loadCharacters(); loadGroups(); loadWorldbooks(); }
@@ -411,15 +450,64 @@
     function saveCharacter(e) { e.preventDefault(); 
         const id = $('#char-id').val(), name = $('#char-name').val().trim().replace(/\s+/g, '_');
         if (!name) return showToast('charNameCannotBeEmpty');
-        const data = { name, persona: $('#char-persona').val(), greeting: $('#char-greeting').val() };
-        const req = id ? getStore('characters', 'readwrite').put({ ...data, id: parseInt(id) }) : getStore('characters', 'readwrite').add(data);
-        req.onsuccess = () => { showEditor(null); loadAndRenderAll(); };
+        const isPlayer = $('#char-is-player').prop('checked');
+        const data = { name, persona: $('#char-persona').val(), greeting: $('#char-greeting').val(), isPlayer };
+        
+        // 如果设置为主角，先清除其他主角设置
+        if (isPlayer) {
+            const charStore = getStore('characters', 'readwrite');
+            const getAllReq = charStore.getAll();
+            getAllReq.onsuccess = function() {
+                const allChars = getAllReq.result;
+                const playerChars = allChars.filter(char => char.isPlayer && (!id || char.id !== parseInt(id)));
+                
+                // 清除其他主角设置
+                playerChars.forEach(char => {
+                    char.isPlayer = false;
+                    charStore.put(char);
+                });
+                
+                // 保存当前角色
+                const saveReq = id ? charStore.put({ ...data, id: parseInt(id) }) : charStore.add(data);
+                saveReq.onsuccess = function(e) {
+                    const charId = id ? parseInt(id) : e.target.result;
+                    if (isPlayer) {
+                        // 更新当前主角
+                        const char = { ...data, id: charId };
+                        currentState.playerCharacter = char;
+                        currentState.characterCache.set(charId, char);
+                    } else if (currentState.playerCharacter && currentState.playerCharacter.id === charId) {
+                        // 如果取消了当前主角的设置
+                        currentState.playerCharacter = null;
+                    }
+                    showEditor(null);
+                    loadAndRenderAll();
+                };
+            };
+        } else {
+            // 普通角色直接保存
+            const req = id ? getStore('characters', 'readwrite').put({ ...data, id: parseInt(id) }) : getStore('characters', 'readwrite').add(data);
+            req.onsuccess = (e) => {
+                const charId = id ? parseInt(id) : e.target.result;
+                if (currentState.playerCharacter && currentState.playerCharacter.id === charId) {
+                    // 如果取消了当前主角的设置
+                    currentState.playerCharacter = null;
+                }
+                showEditor(null);
+                loadAndRenderAll();
+            };
+        }
     }
     function editCharacter(id) {
         const char = currentState.characterCache.get(id); if(!char) return;
         clearForms();
-        $('#char-id').val(char.id); $('#char-name').val(char.name); $('#char-persona').val(char.persona);
-        $('#char-greeting').val(char.greeting); $('#delete-char-btn').show(); showEditor('char');
+        $('#char-id').val(char.id); 
+        $('#char-name').val(char.name); 
+        $('#char-persona').val(char.persona);
+        $('#char-greeting').val(char.greeting); 
+        $('#char-is-player').prop('checked', !!char.isPlayer);
+        $('#delete-char-btn').show(); 
+        showEditor('char');
     }
     function deleteCharacter() {
         setupDeleteConfirmation('delete-char-btn', 'deleteChar', async () => {
@@ -538,25 +626,44 @@
     async function handleSendMessage() {
         const text = $('#user-input').val().trim();
         if (!text || !currentState.sessionId) return;
-        addMessageToChat('user', text); saveMessage(currentState.sessionId, 'user', text);
-        $('#user-input').val(''); addMessageToChat('char', '思考中...', 'AI');
+        
+        // 确定消息发送者角色
+        const isPlayerSpeaking = !!currentState.playerCharacter;
+        const role = isPlayerSpeaking ? 'char' : 'user';
+        const characterName = isPlayerSpeaking ? currentState.playerCharacter.name : null;
+        const characterId = isPlayerSpeaking ? currentState.playerCharacter.id : null;
+        
+        // 添加消息到聊天界面并保存
+        addMessageToChat(role, text, characterName);
+        saveMessage(currentState.sessionId, role, text, characterId, characterName);
+        
+        $('#user-input').val(''); 
+        addMessageToChat('char', '思考中...', 'AI');
+        
         try {
             const participants = await getSessionParticipants();
             let mentionedChar = null;
             const match = text.match(/@([\p{L}\p{N}_]+)/u);
             if (match) mentionedChar = participants.find(p => p.name.toLowerCase() === match[1].toLowerCase());
+            
+            // 构建提示并获取AI响应
             const prompt = await constructPrompt(mentionedChar ? mentionedChar.name : null);
             const responseText = await getAIResponse(prompt);
             $('#chat-history').children().last().remove();
-            let characterName = null, content = responseText;
+            
+            // 处理AI响应
+            let respCharName = null, content = responseText;
             const parts = responseText.split(':');
             const speakingChar = participants.find(p => p.name === parts[0].trim());
+            
             if (speakingChar && parts.length > 1) {
-                characterName = speakingChar.name;
+                respCharName = speakingChar.name;
                 content = parts.slice(1).join(':').trim();
             }
-            addMessageToChat('char', content, characterName);
-            saveMessage(currentState.sessionId, 'char', content, speakingChar?.id, characterName);
+            
+            // 添加AI响应到聊天界面并保存
+            addMessageToChat('char', content, respCharName);
+            saveMessage(currentState.sessionId, 'char', content, speakingChar?.id, respCharName);
         } catch (error) {
             console.error('Error:', error);
             $('#chat-history').children().last().remove();
@@ -579,27 +686,65 @@
         const convoText = history.map(h => h.content).join('\n');
         const worldbooks = await new Promise(r => getStore('worldbooks', 'readonly').getAll().onsuccess = e => r(e.target.result));
         const triggeredWorlds = worldbooks.filter(w => w.keywords.split(',').some(k => convoText.toLowerCase().includes(k.trim().toLowerCase())));
+        
+        // 构建场景角色部分
         let prompt = "[System Note: This is a roleplay conversation.]\n\n== CHARACTERS IN THIS SCENE ==\n";
         participants.forEach(p => { prompt += `Name: ${p.name}\nPersona: ${p.persona}\n\n`; });
+        
+        // 添加世界设定
         if (triggeredWorlds.length > 0) {
             prompt += "== RELEVANT WORLDBOOK ENTRIES ==\n";
             triggeredWorlds.forEach(w => prompt += `Content for "${w.keywords}": ${w.content}\n\n`);
         }
+        
+        // 添加对话历史
         prompt += "== RECENT CONVERSATION HISTORY ==\n";
-        history.forEach(msg => { prompt += `${msg.role === 'user' ? 'User' : msg.characterName || 'Narration'}: ${msg.content}\n`; });
+        
+        // 检查是否有主角角色
+        const hasPlayerCharacter = !!currentState.playerCharacter;
+        
+        // 根据是否有主角角色，调整历史消息的显示方式
+        history.forEach(msg => { 
+            let speakerName;
+            if (msg.role === 'user') {
+                // 如果没有主角，显示为User，否则已经在characterName中显示了主角名称
+                speakerName = hasPlayerCharacter ? (msg.characterName || 'User') : 'User';
+            } else {
+                speakerName = msg.characterName || 'Narration';
+            }
+            prompt += `${speakerName}: ${msg.content}\n`; 
+        });
+        
+        // 构建角色扮演指令
         let roleplayInstruction = '';
         const isGroup = currentState.sessionType === 'group' && participants.length > 1;
+        
         if (isGroup) {
             if (targetCharacterName) {
-                roleplayInstruction = `The User speaks directly to ${targetCharacterName}. ${targetCharacterName} MUST respond. Format: '${targetCharacterName}: Their dialogue'.`;
+                // 如果有主角，调整提示以反映用户是以主角身份说话
+                if (hasPlayerCharacter) {
+                    roleplayInstruction = `${currentState.playerCharacter.name} speaks directly to ${targetCharacterName}. ${targetCharacterName} MUST respond. Format: '${targetCharacterName}: Their dialogue'.`;
+                } else {
+                    roleplayInstruction = `The User speaks directly to ${targetCharacterName}. ${targetCharacterName} MUST respond. Format: '${targetCharacterName}: Their dialogue'.`;
+                }
             } else {
                 roleplayInstruction = `You are the roleplay master, responsible for driving the story forward. Based on the characters and world setting, you MUST decide who speaks next OR provide narration. Narration is crucial for describing the environment, introducing new events, or revealing challenges. For example, 'A cold wind blows through the trees, carrying the scent of decay.' Use narration to make the story dynamic and interesting. For character dialogue, use the format 'CharacterName: Their dialogue'. For narration, omit the prefix.`;
             }
         } else {
+            // 单角色对话
             roleplayInstruction = `Continue as ${participants[0].name}. Do not include your name as a prefix.`;
         }
+        
+        // 添加语言指令
         const langInstruction = currentLang === 'zh-CN' ? '你必须只使用简体中文进行回复。' : 'You MUST respond only in English.';
-        prompt += `\n[System Note: ${roleplayInstruction} Final instruction: ${langInstruction}]`;
+        
+        // 如果有主角，添加额外说明
+        if (hasPlayerCharacter) {
+            prompt += `\n[System Note: The user is roleplaying as ${currentState.playerCharacter.name}. ${roleplayInstruction} Final instruction: ${langInstruction}]`;
+        } else {
+            prompt += `\n[System Note: ${roleplayInstruction} Final instruction: ${langInstruction}]`;
+        }
+        
         return prompt;
     }
     async function getAIResponse(prompt) {
@@ -615,17 +760,23 @@
         } else {
             response = await fetch(apiUrl, {
                 method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                body: JSON.stringify({ model: model || 'gpt-3.5-turbo', messages: [{ role: 'user', content: prompt }] })
+                body: JSON.stringify({ model: model, messages: [{ role: 'user', content: prompt }] })
             });
         }
-        if (!response.ok) { const errorBody = await response.json(); throw new Error(`API Error: ${errorBody.error?.message || JSON.stringify(errorBody)}`); }
-        const result = await response.json();
-        if (apiUrl.includes('openai.com')) {
-            if (result.choices?.[0]?.message?.content) return result.choices[0].message.content;
-        } else {
-            if (result.candidates?.[0]?.content?.parts?.[0]?.text) return result.candidates[0].content.parts[0].text;
+        if (!response.ok) {
+            const errorBody = await response.json(); throw new Error(`API Error: ${errorBody.error?.message || JSON.stringify(errorBody)}`); 
         }
-        throw new Error(result.promptFeedback?.blockReason ? `Content blocked: ${result.promptFeedback.blockReason}` : "AI failed to generate a valid response.");
+        const result = await response.json();
+        
+        if (result.choices && result.choices[0]?.message?.content) {
+            let content = result.choices[0].message.content;
+            return content.replace(/<think>[\s\S]*?<\/think>/g, '');
+        } else {
+            if (result.promptFeedback?.blockReason) {
+                return `[内容被阻止: ${result.promptFeedback.blockReason}]`;
+            }
+            return "[AI未能生成有效回复]";
+        }
     }
     
     // --- @MENTION SUGGESTIONS ---
