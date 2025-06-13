@@ -98,7 +98,7 @@
                     <h2 id="chat-session-name" class="text-2xl font-bold"></h2>
                     <p id="chat-participants" class="text-sm text-gray-400"></p>
                 </div>
-                <div id="chat-history-container" class="flex-1 custom-scrollbar overflow-y-auto pr-4">
+                <div id="chat-history-container" class="flex-1 custom-scrollbar overflow-y-auto pr-4 h-[calc(100vh-12rem)]">
                     <div id="chat-history" class="space-y-4 flex flex-col"></div>
                 </div>
                 <div class="mt-4 relative flex-shrink-0">
@@ -142,7 +142,7 @@
             welcomeTitle: '欢迎使用', welcomeMessage: '从左侧选择一个群组或角色开始对话。',
             userInputPlaceholder: '输入你的消息, 可使用 @ 来提及角色...', sendBtn: '发送',
             editorTitle: '编辑器', editorWelcomeMessage: '点击 "创建" 或选择现有条目进行编辑。',
-            configEditorTitle: '世界配置', apiKeyLabel: 'API Key', apiUrlLabel: 'API URL', saveConfigBtn: '保存配置',
+            configEditorTitle: '世界配置', apiKeyLabel: 'API Key', apiUrlLabel: 'API URL', modelLabel: '模型 (Model)', saveConfigBtn: '保存配置',
             alertWorldNameEmpty: '世界名称不能为空！', alertSelectWorld: '请从下拉列表中选择一个世界。',
             alertEnterWorldFailed: '进入世界失败', alertConfigSaved: '配置已保存！', alertLangChanged: '语言已切换！',
             charNameCannotBeEmpty: '角色名称不能为空。', groupNeedOneChar: '群聊至少需要1个角色。',
@@ -159,7 +159,7 @@
             welcomeTitle: 'Welcome', welcomeMessage: 'Select a group or character from the left to start chatting.',
             userInputPlaceholder: 'Type your message, use @ to mention characters...', sendBtn: 'Send',
             editorTitle: 'Editor', editorWelcomeMessage: 'Click "Create" or select an existing item to edit.',
-            configEditorTitle: 'World Settings', apiKeyLabel: 'API Key', apiUrlLabel: 'API URL', saveConfigBtn: 'Save Settings',
+            configEditorTitle: 'World Settings', apiKeyLabel: 'API Key', apiUrlLabel: 'API URL', modelLabel: 'Model', saveConfigBtn: 'Save Settings',
             alertWorldNameEmpty: 'World name cannot be empty!', alertSelectWorld: 'Please select a world from the dropdown.',
             alertEnterWorldFailed: 'Failed to enter world', alertConfigSaved: 'Settings saved!', alertLangChanged: 'Language Changed!',
             charNameCannotBeEmpty: 'Character name cannot be empty.', groupNeedOneChar: 'Group chat needs at least one character.',
@@ -201,7 +201,7 @@
     let currentState = {
         sessionId: null, sessionType: null,
         characterCache: new Map(),
-        worldConfig: { apiKey: '', apiUrl: '' }
+        worldConfig: { apiKey: '', apiUrl: '', model: '' }
     };
 
     // --- UTILITY: TOAST NOTIFICATION ---
@@ -284,33 +284,41 @@
     // --- CONFIGURATION MANAGEMENT ---
     async function loadWorldConfig() {
         const store = getStore('config', 'readonly');
-        const [apiKeyReq, apiUrlReq] = [store.get('apiKey'), store.get('apiUrl')];
+        const [apiKeyReq, apiUrlReq, modelReq] = [store.get('apiKey'), store.get('apiUrl'), store.get('model')];
 
         const apiKey = await new Promise(r => { apiKeyReq.onsuccess = () => r(apiKeyReq.result); apiKeyReq.onerror = () => r(undefined); });
         const apiUrl = await new Promise(r => { apiUrlReq.onsuccess = () => r(apiUrlReq.result); apiUrlReq.onerror = () => r(undefined); });
+        const model = await new Promise(r => { modelReq.onsuccess = () => r(modelReq.result); modelReq.onerror = () => r(undefined); });
 
-        if (apiKey === undefined || apiUrl === undefined) {
+        if (apiKey === undefined || apiUrl === undefined || model === undefined) {
             const defaultConfig = {
                 apiKey: '',
-                apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
+                apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
+                model: 'gemini-2.0-flash'
             };
             const writeTx = db.transaction('config', 'readwrite');
             const writeStore = writeTx.objectStore('config');
             writeStore.put(defaultConfig.apiKey, 'apiKey');
             writeStore.put(defaultConfig.apiUrl, 'apiUrl');
+            writeStore.put(defaultConfig.model, 'model');
             await new Promise(r => writeTx.oncomplete = r);
             currentState.worldConfig = defaultConfig;
         } else {
-            currentState.worldConfig = { apiKey, apiUrl };
+            currentState.worldConfig = { apiKey, apiUrl, model };
         }
     }
     
     function saveWorldConfig(e) {
         e.preventDefault();
-        const newConfig = { apiKey: $('#config-api-key').val(), apiUrl: $('#config-api-url').val() };
+        const newConfig = {
+            apiKey: $('#config-api-key').val(),
+            apiUrl: $('#config-api-url').val(),
+            model: $('#config-model').val()
+        };
         const store = getStore('config', 'readwrite');
         store.put(newConfig.apiKey, 'apiKey');
         store.put(newConfig.apiUrl, 'apiUrl');
+        store.put(newConfig.model, 'model');
         currentState.worldConfig = newConfig;
         showToast('alertConfigSaved', false);
         showEditor(null);
@@ -320,6 +328,7 @@
         clearForms();
         $('#config-api-key').val(currentState.worldConfig.apiKey);
         $('#config-api-url').val(currentState.worldConfig.apiUrl);
+        $('#config-model').val(currentState.worldConfig.model);
         showEditor('config');
     }
 
@@ -355,7 +364,7 @@
     
     function populateEditors() {
         const t = i18n[currentLang];
-        $('#config-editor').html(`<h3 class="text-xl font-bold mb-4">${t.configEditorTitle}</h3><div><label for="config-api-key" class="block text-sm font-medium">${t.apiKeyLabel}</label><input type="text" id="config-api-key" class="w-full mt-1 p-2 bg-gray-700 rounded-lg"></div><div><label for="config-api-url" class="block text-sm font-medium">${t.apiUrlLabel}</label><input type="text" id="config-api-url" class="w-full mt-1 p-2 bg-gray-700 rounded-lg"></div><div class="flex"><button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">${t.saveConfigBtn}</button></div>`);
+        $('#config-editor').html(`<h3 class="text-xl font-bold mb-4">${t.configEditorTitle}</h3><div><label for="config-api-key" class="block text-sm font-medium">${t.apiKeyLabel}</label><input type="text" id="config-api-key" class="w-full mt-1 p-2 bg-gray-700 rounded-lg"></div><div><label for="config-api-url" class="block text-sm font-medium">${t.apiUrlLabel}</label><input type="text" id="config-api-url" class="w-full mt-1 p-2 bg-gray-700 rounded-lg"></div><div><label for="config-model" class="block text-sm font-medium">${t.modelLabel}</label><input type="text" id="config-model" class="w-full mt-1 p-2 bg-gray-700 rounded-lg"></div><div class="flex"><button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">${t.saveConfigBtn}</button></div>`);
         $('#char-editor').html(`<input type="hidden" id="char-id"><div><label for="char-name" class="block text-sm font-medium">角色名称</label><input type="text" id="char-name" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></div><div><label for="char-persona" class="block text-sm font-medium">角色设定</label><textarea id="char-persona" rows="8" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></textarea></div><div><label for="char-greeting" class="block text-sm font-medium">开场白</label><textarea id="char-greeting" rows="4" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></textarea></div><div class="flex space-x-2"><button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">保存角色</button><button type="button" id="delete-char-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg hidden" data-i18n="deleteChar">删除角色</button></div>`);
         $('#world-editor').html(`<input type="hidden" id="world-id"><div><label for="world-keywords" class="block text-sm font-medium">关键词</label><input type="text" id="world-keywords" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></div><div><label for="world-content" class="block text-sm font-medium">内容</label><textarea id="world-content" rows="10" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></textarea></div><div class="flex space-x-2"><button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">保存条目</button><button type="button" id="delete-world-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg hidden" data-i18n="deleteEntry">删除条目</button></div>`);
         $('#group-editor').html(`<input type="hidden" id="group-id"><div><label for="group-name" class="block text-sm font-medium">群组名称</label><input type="text" id="group-name" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></div><div><label class="block text-sm font-medium">选择角色</label><div id="group-char-selection" class="mt-2 p-2 bg-gray-700 rounded-lg max-h-60 overflow-y-auto custom-scrollbar"></div></div><div class="flex space-x-2"><button type="submit" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg">保存群组</button><button type="button" id="delete-group-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg hidden" data-i18n="deleteGroup">删除群组</button></div>`);
@@ -595,18 +604,18 @@
     }
     async function getAIResponse(prompt) {
         console.log("--- PROMPT SENT TO AI ---\n", prompt);
-        const { apiKey, apiUrl } = currentState.worldConfig;
+        const { apiKey, apiUrl, model } = currentState.worldConfig;
         let response;
-        if (apiUrl.includes('openai.com')) {
-            response = await fetch(apiUrl, {
-                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                body: JSON.stringify({ model: 'gpt-3.5-turbo', messages: [{ role: 'user', content: prompt }] })
-            });
-        } else {
+        if (apiUrl.includes('googleapis.com')) {
             const fullApiUrl = `${apiUrl}?key=${apiKey}`;
             response = await fetch(fullApiUrl, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }] })
+            });
+        } else {
+            response = await fetch(apiUrl, {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                body: JSON.stringify({ model: model || 'gpt-3.5-turbo', messages: [{ role: 'user', content: prompt }] })
             });
         }
         if (!response.ok) { const errorBody = await response.json(); throw new Error(`API Error: ${errorBody.error?.message || JSON.stringify(errorBody)}`); }
