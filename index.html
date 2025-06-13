@@ -630,7 +630,7 @@
                 const $listEl = $('#world-list').empty();
                 const entries = await new Promise(r => getStore('worldbooks', 'readonly').getAll().onsuccess = e => r(e.target.result));
                 entries.forEach(entry => {
-                    $('<li></li>').addClass('sidebar-item p-2 rounded-lg cursor-pointer flex justify-between items-center').text(`${entry.keywords.split(',')[0].trim()}...`).attr('title', entry.keywords).append($('<span></span>').text('✏️').addClass('text-sm opacity-50 hover:opacity-100').on('click', e => { e.stopPropagation(); editWorldbook(entry.id); })).appendTo($listEl);
+                    $('<li></li>').addClass('sidebar-item p-2 rounded-lg cursor-pointer flex justify-between items-center').text(`${entry.keywords.split(/[,，]/)[0].trim()}...`).attr('title', entry.keywords).append($('<span></span>').text('✏️').addClass('text-sm opacity-50 hover:opacity-100').on('click', e => { e.stopPropagation(); editWorldbook(entry.id); })).appendTo($listEl);
                 });
             }
 
@@ -811,7 +811,7 @@
                 const $msgWrapper = $('<div></div>').addClass('flex flex-col').append($bubble);
                 if (role === 'user') $msgWrapper.addClass('items-end').find('.chat-bubble').addClass('chat-bubble-user');
                 else if (role === 'system') $msgWrapper.addClass('items-center').find('.chat-bubble').addClass('text-sm text-gray-400 italic text-center');
-                else $msgWrapper.addClass('items-start').find('.chat-bubble').addClass('chat-bubble-char').end().prepend($('<div></div>').addClass('speaker-name').text(characterName || '旁白'));
+                else $msgWrapper.addClass('items-start whitespace-pre-line').find('.chat-bubble').addClass('chat-bubble-char').end().prepend($('<div></div>').addClass('speaker-name').text(characterName || '旁白'));
                 $('#chat-history').append($msgWrapper);
                 $historyContainer.scrollTop($historyContainer[0].scrollHeight);
             }
@@ -910,7 +910,7 @@
                 const history = (await new Promise(r => getStore('chat_history', 'readonly').index('sessionId').getAll(currentState.sessionId).onsuccess = e => r(e.target.result))).slice(-15);
                 const convoText = history.map(h => h.content).join('\n');
                 const worldbooks = await new Promise(r => getStore('worldbooks', 'readonly').getAll().onsuccess = e => r(e.target.result));
-                const triggeredWorlds = worldbooks.filter(w => w.keywords.split(',').some(k => convoText.toLowerCase().includes(k.trim().toLowerCase())));
+                const triggeredWorlds = worldbooks.filter(w => w.keywords.split(/[,，]/).some(k => convoText.toLowerCase().includes(k.trim().toLowerCase())));
 
                 // 构建场景角色部分
                 let prompt = "[System Note: This is a roleplay conversation.]\n\n== CHARACTERS IN THIS SCENE ==\n";
@@ -935,7 +935,7 @@
                         // 如果没有主角，显示为User，否则已经在characterName中显示了主角名称
                         speakerName = hasPlayerCharacter ? (msg.characterName || 'User') : 'User';
                     } else {
-                        speakerName = msg.characterName || 'Narration';
+                        speakerName = msg.characterName || '旁白';
                     }
                     prompt += `${speakerName}: ${msg.content}\n`;
                 });
@@ -1010,7 +1010,8 @@
                     } else if (result.choices[0].message?.reasoning_content) {
                         content = result.choices[0].message?.reasoning_content;
                     }
-                    return content.replace(/<think>[\s\S]*?<\/think>/g, '');
+                    // 清理思考标签并替换英文Narration为中文旁白
+                    return content.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/\[?Narration:/gi, '旁白:');
                 } else {
                     if (result.promptFeedback?.blockReason) {
                         return `[内容被阻止: ${result.promptFeedback.blockReason}]`;
