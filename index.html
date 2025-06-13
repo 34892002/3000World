@@ -944,20 +944,30 @@
                 let roleplayInstruction = '';
                 const isGroup = currentState.sessionType === 'group' && participants.length > 1;
 
+                // 添加基础AI控制规则
+                let aiControlRules = 'IMPORTANT: AI can only control the behaviors and dialogues of non-player characters, and must never speak or act on behalf of the player character.';
+                if (hasPlayerCharacter) {
+                    aiControlRules += `The player character is ${currentState.playerCharacter.name}, and the AI must never control this character.`;
+                }
+
                 if (isGroup) {
                     if (targetCharacterName) {
                         // 如果有主角，调整提示以反映用户是以主角身份说话
                         if (hasPlayerCharacter) {
-                            roleplayInstruction = `${currentState.playerCharacter.name} speaks directly to ${targetCharacterName}. ${targetCharacterName} MUST respond. Format: '${targetCharacterName}: Their dialogue'.`;
+                            roleplayInstruction = `${aiControlRules} ${currentState.playerCharacter.name} speaks directly to ${targetCharacterName}. ${targetCharacterName} MUST respond. Format: '${targetCharacterName}: Their dialogue'.`;
                         } else {
-                            roleplayInstruction = `The User speaks directly to ${targetCharacterName}. ${targetCharacterName} MUST respond. Format: '${targetCharacterName}: Their dialogue'.`;
+                            roleplayInstruction = `${aiControlRules} The User speaks directly to ${targetCharacterName}. ${targetCharacterName} MUST respond. Format: '${targetCharacterName}: Their dialogue'.`;
                         }
                     } else {
-                        roleplayInstruction = `You are the roleplay master, responsible for driving the story forward. Based on the characters and world setting, you MUST decide who speaks next OR provide narration. Narration is crucial for describing the environment, introducing new events, or revealing challenges. For example, 'A cold wind blows through the trees, carrying the scent of decay.' Use narration to make the story dynamic and interesting. For character dialogue, use the format 'CharacterName: Their dialogue'. For narration, omit the prefix.`;
+                        roleplayInstruction = `${aiControlRules} You are the roleplay master, responsible for driving the story forward. Based on the characters and world setting, you MUST decide who speaks next OR provide narration. Narration is crucial for describing the environment, introducing new events, or revealing challenges. For example, 'A cold wind blows through the trees, carrying the scent of decay.' Use narration to make the story dynamic and interesting. For character dialogue, use the format 'CharacterName: Their dialogue'. For narration, omit the prefix.`;
                     }
                 } else {
                     // 单角色对话
-                    roleplayInstruction = `Continue as ${participants[0].name}. Do not include your name as a prefix.`;
+                    if (hasPlayerCharacter && participants[0].name === currentState.playerCharacter.name) {
+                        roleplayInstruction = `${aiControlRules} Wait for the input from the player character ${currentState.playerCharacter.name}. The AI cannot speak on behalf of the player.`;
+                    } else {
+                        roleplayInstruction = `${aiControlRules} Continue as ${participants[0].name}. Do not include your name as a prefix.`;
+                    }
                 }
 
                 // 添加语言指令
@@ -965,9 +975,9 @@
 
                 // 如果有主角，添加额外说明
                 if (hasPlayerCharacter) {
-                    prompt += `\n[System Note: The user is roleplaying as ${currentState.playerCharacter.name}. ${roleplayInstruction} Final instruction: ${langInstruction}]`;
+                    prompt += `\n[System Note: 严格规则：AI每次回复只能控制一个非主角角色，或者只提供旁白描述。绝对禁止在同一回复中控制多个角色。玩家角色是 ${currentState.playerCharacter.name}，AI绝不能代替此角色说话或行动。剧情只能根据 ${currentState.playerCharacter.name} 的对话来推进。如果没有说明角色应该互相不认识，应该随着角色之间的对话来缓慢推进剧情。 ${roleplayInstruction} Final instruction: ${langInstruction}]`;
                 } else {
-                    prompt += `\n[System Note: ${roleplayInstruction} Final instruction: ${langInstruction}]`;
+                    prompt += `\n[System Note: 严格规则：AI每次回复只能控制一个角色，或者只提供旁白描述。绝对禁止在同一回复中控制多个角色。 ${roleplayInstruction} Final instruction: ${langInstruction}]`;
                 }
 
                 return prompt;
