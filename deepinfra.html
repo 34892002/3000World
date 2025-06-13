@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简易版SillyTavern (群聊版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .chat-bubble {
+            max-width: 80%;
+            width: fit-content;
+        }
+        .chat-bubble-user {
+            background-color: #3b82f6;
+            color: white;
+            align-self: flex-end;
+        }
+        .chat-bubble-char {
+            background-color: #4b5563;
+            color: white;
+            align-self: flex-start;
+        }
+        .speaker-name {
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: #d1d5db; /* Tailwind gray-300 */
+            margin-bottom: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1f2937; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+        .sidebar-item:hover, .sidebar-item.active { background-color: #374151; }
+        #group-char-selection label { display: block; margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+
+    <div class="flex h-screen">
+        <!-- Left Sidebar -->
+        <aside class="w-1/4 bg-gray-800 p-4 flex flex-col custom-scrollbar overflow-y-auto">
+            <div class="mb-6">
+                <h2 class="text-xl font-bold mb-3">群聊</h2>
+                <button id="new-group-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg mb-3">创建新群组</button>
+                <ul id="group-list" class="space-y-2"></ul>
+            </div>
+            <div class="mb-6">
+                <h2 class="text-xl font-bold mb-3">角色卡片</h2>
+                <button id="new-char-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg mb-3">创建新角色</button>
+                <ul id="char-list" class="space-y-2"></ul>
+            </div>
+            <div>
+                <h2 class="text-xl font-bold mb-3">世界设定集</h2>
+                <button id="new-world-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg mb-3">创建新条目</button>
+                <ul id="world-list" class="space-y-2"></ul>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="w-1/2 bg-gray-900 flex flex-col p-4">
+            <div id="chat-welcome" class="flex flex-col items-center justify-center h-full text-center">
+                <h1 class="text-3xl font-bold text-gray-400">欢迎使用</h1>
+                <p class="text-gray-500 mt-2">从左侧选择一个群组或角色开始对话。</p>
+            </div>
+            <div id="chat-area" class="hidden flex-1 flex flex-col">
+                 <div id="chat-header" class="border-b-2 border-gray-700 pb-2 mb-4">
+                    <h2 id="chat-session-name" class="text-2xl font-bold"></h2>
+                    <p id="chat-participants" class="text-sm text-gray-400"></p>
+                </div>
+                <div id="chat-history" class="flex-1 overflow-y-auto custom-scrollbar pr-4 space-y-4 flex flex-col"></div>
+                <div class="mt-4 flex items-center">
+                    <textarea id="user-input" class="w-full p-3 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="输入你的消息..." rows="2"></textarea>
+                    <button id="send-btn" class="ml-3 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded-lg">发送</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Sidebar -->
+        <aside class="w-1/4 bg-gray-800 p-6 custom-scrollbar overflow-y-auto">
+            <div id="editor-panel">
+                <div id="editor-welcome" class="text-gray-500">
+                    <h3 class="text-xl font-bold mb-2">编辑器</h3>
+                    <p>点击 "创建" 或选择现有条目进行编辑。</p>
+                </div>
+                <!-- Group Editor -->
+                <form id="group-editor" class="hidden space-y-4">
+                    <input type="hidden" id="group-id">
+                    <div>
+                        <label for="group-name" class="block text-sm font-medium text-gray-300">群组名称</label>
+                        <input type="text" id="group-name" class="w-full mt-1 p-2 bg-gray-700 rounded-lg border border-gray-600" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300">选择角色</label>
+                        <div id="group-char-selection" class="mt-2 p-2 bg-gray-700 rounded-lg max-h-60 overflow-y-auto custom-scrollbar"></div>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button type="submit" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg">保存群组</button>
+                        <button type="button" id="delete-group-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg hidden">删除群组</button>
+                    </div>
+                </form>
+                <!-- Character Editor -->
+                <form id="char-editor" class="hidden space-y-4"></form>
+                <!-- Worldbook Editor -->
+                <form id="world-editor" class="hidden space-y-4"></form>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+    // --- DATABASE (IndexedDB) SETUP ---
+    const DB_NAME = 'SimpleSillyTavernDB';
+    const DB_VERSION = 2; // Incremented version for schema change
+    let db;
+
+    function initDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onerror = e => reject(`Database error: ${e.target.error}`);
+            request.onupgradeneeded = e => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains('characters')) {
+                    db.createObjectStore('characters', { keyPath: 'id', autoIncrement: true });
+                }
+                if (!db.objectStoreNames.contains('worldbooks')) {
+                    db.createObjectStore('worldbooks', { keyPath: 'id', autoIncrement: true });
+                }
+                 if (!db.objectStoreNames.contains('groups')) {
+                    db.createObjectStore('groups', { keyPath: 'id', autoIncrement: true });
+                }
+                if (db.objectStoreNames.contains('chat_history')) {
+                     db.deleteObjectStore('chat_history');
+                }
+                const chatStore = db.createObjectStore('chat_history', { keyPath: 'id', autoIncrement: true });
+                chatStore.createIndex('sessionId', 'sessionId', { unique: false });
+            };
+            request.onsuccess = e => {
+                db = e.target.result;
+                console.log('Database initialized successfully.');
+                resolve(db);
+            };
+        });
+    }
+
+    // --- GLOBAL STATE ---
+    let currentState = {
+        sessionId: null, // "char_1" or "group_5"
+        sessionType: null, // "character" or "group"
+        characterCache: new Map(),
+    };
+
+    // --- UTILITY FUNCTIONS ---
+    function getStore(storeName, mode) {
+        return db.transaction(storeName, mode).objectStore(storeName);
+    }
+    
+    function showEditor(type) {
+        ['editor-welcome', 'char-editor', 'world-editor', 'group-editor'].forEach(id => document.getElementById(id).classList.add('hidden'));
+        if (type) document.getElementById(`${type}-editor`).classList.remove('hidden');
+        else document.getElementById('editor-welcome').classList.remove('hidden');
+    }
+
+    function clearForms() {
+        ['char-editor', 'world-editor', 'group-editor'].forEach(id => document.getElementById(id).reset());
+        document.getElementById('char-id').value = '';
+        document.getElementById('delete-char-btn').classList.add('hidden');
+        document.getElementById('world-id').value = '';
+        document.getElementById('delete-world-btn').classList.add('hidden');
+        document.getElementById('group-id').value = '';
+        document.getElementById('delete-group-btn').classList.add('hidden');
+    }
+
+    async function cacheAllCharacters() {
+        currentState.characterCache.clear();
+        const store = getStore('characters', 'readonly');
+        const chars = await new Promise((resolve, reject) => {
+            const req = store.getAll();
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+        for (const char of chars) {
+            currentState.characterCache.set(char.id, char);
+        }
+        return chars;
+    }
+    
+    // --- UI/DOM MANIPULATION ---
+    function populateEditors() {
+        const charEditor = document.getElementById('char-editor');
+        charEditor.innerHTML = `
+            <input type="hidden" id="char-id">
+            <div><label for="char-name" class="block text-sm font-medium text-gray-300">角色名称</label><input type="text" id="char-name" class="w-full mt-1 p-2 bg-gray-700 rounded-lg border border-gray-600" required></div>
+            <div><label for="char-persona" class="block text-sm font-medium text-gray-300">角色设定</label><textarea id="char-persona" rows="8" class="w-full mt-1 p-2 bg-gray-700 rounded-lg border border-gray-600" required></textarea></div>
+            <div><label for="char-greeting" class="block text-sm font-medium text-gray-300">开场白</label><textarea id="char-greeting" rows="4" class="w-full mt-1 p-2 bg-gray-700 rounded-lg border border-gray-600" required></textarea></div>
+            <div class="flex space-x-2">
+                <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">保存角色</button>
+                <button type="button" id="delete-char-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg hidden">删除角色</button>
+            </div>`;
+        charEditor.addEventListener('submit', saveCharacter);
+        document.getElementById('delete-char-btn').addEventListener('click', deleteCharacter);
+
+        const worldEditor = document.getElementById('world-editor');
+        worldEditor.innerHTML = `
+            <input type="hidden" id="world-id">
+            <div><label for="world-keywords" class="block text-sm font-medium text-gray-300">关键词</label><input type="text" id="world-keywords" class="w-full mt-1 p-2 bg-gray-700 rounded-lg border border-gray-600" required></div>
+            <div><label for="world-content" class="block text-sm font-medium text-gray-300">内容</label><textarea id="world-content" rows="10" class="w-full mt-1 p-2 bg-gray-700 rounded-lg border border-gray-600" required></textarea></div>
+            <div class="flex space-x-2">
+                <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">保存条目</button>
+                <button type="button" id="delete-world-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg hidden">删除条目</button>
+            </div>`;
+        worldEditor.addEventListener('submit', saveWorldbook);
+        document.getElementById('delete-world-btn').addEventListener('click', deleteWorldbook);
+
+        document.getElementById('group-editor').addEventListener('submit', saveGroup);
+        document.getElementById('delete-group-btn').addEventListener('click', deleteGroup);
+    }
+    
+    function renderListItem(listEl, item, type) {
+        const li = document.createElement('li');
+        li.className = `sidebar-item p-2 rounded-lg cursor-pointer flex justify-between items-center ${currentState.sessionId === `${type}_${item.id}` ? 'active' : ''}`;
+        li.textContent = item.name;
+        li.dataset.id = item.id;
+        li.dataset.type = type;
+
+        const editBtn = document.createElement('span');
+        editBtn.textContent = '✏️';
+        editBtn.className = 'text-sm opacity-50 hover:opacity-100';
+        editBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (type === 'character') editCharacter(item.id);
+            else if (type === 'group') editGroup(item.id);
+        };
+
+        li.appendChild(editBtn);
+        li.onclick = () => selectSession(item.id, type);
+        listEl.appendChild(li);
+    }
+    
+    // --- LOAD & RENDER FUNCTIONS ---
+    async function loadAndRenderAll() {
+        await cacheAllCharacters();
+        loadCharacters();
+        loadGroups();
+        loadWorldbooks();
+    }
+
+    async function loadCharacters() {
+        const charList = document.getElementById('char-list');
+        const groupCharSel = document.getElementById('group-char-selection');
+        charList.innerHTML = '';
+        groupCharSel.innerHTML = '';
+        const chars = Array.from(currentState.characterCache.values());
+        
+        if (chars.length === 0) {
+            groupCharSel.innerHTML = '<p class="text-gray-400">请先创建角色</p>';
+        } else {
+            chars.forEach(char => {
+                renderListItem(charList, char, 'character');
+                groupCharSel.innerHTML += `
+                    <label class="flex items-center space-x-3">
+                        <input type="checkbox" value="${char.id}" class="form-checkbox h-5 w-5 bg-gray-800 border-gray-600 text-purple-600 focus:ring-purple-500 rounded">
+                        <span>${char.name}</span>
+                    </label>`;
+            });
+        }
+    }
+
+    async function loadGroups() {
+        const groupList = document.getElementById('group-list');
+        groupList.innerHTML = '';
+        const store = getStore('groups', 'readonly');
+        const groups = await new Promise(r => store.getAll().onsuccess = e => r(e.target.result));
+        groups.forEach(group => renderListItem(groupList, group, 'group'));
+    }
+
+    async function loadWorldbooks() { /* Unchanged from previous version */
+        const listEl = document.getElementById('world-list');
+        listEl.innerHTML = '';
+        const store = getStore('worldbooks', 'readonly');
+        const entries = await new Promise(r => store.getAll().onsuccess = e => r(e.target.result));
+        entries.forEach(entry => {
+            const li = document.createElement('li');
+            li.className = 'sidebar-item p-2 rounded-lg cursor-pointer flex justify-between items-center';
+            const keyword = entry.keywords.split(',')[0].trim();
+            li.textContent = `${keyword}...`;
+            li.title = entry.keywords;
+            const editBtn = document.createElement('span');
+            editBtn.textContent = '✏️';
+            editBtn.className = 'text-sm opacity-50 hover:opacity-100';
+            editBtn.onclick = e => { e.stopPropagation(); editWorldbook(entry.id); };
+            li.appendChild(editBtn);
+            listEl.appendChild(li);
+        });
+    }
+
+    // --- CRUD OPERATIONS ---
+    async function saveCharacter(e) { e.preventDefault(); /* ... mostly unchanged ... */ 
+        const id = document.getElementById('char-id').value;
+        const data = {
+            name: document.getElementById('char-name').value,
+            persona: document.getElementById('char-persona').value,
+            greeting: document.getElementById('char-greeting').value,
+        };
+        const store = getStore('characters', 'readwrite');
+        const req = id ? store.put({ ...data, id: parseInt(id) }) : store.add(data);
+        req.onsuccess = () => { clearForms(); showEditor(null); loadAndRenderAll(); };
+    }
+    async function editCharacter(id) { /* ... unchanged ... */
+        const char = currentState.characterCache.get(id);
+        if(!char) return;
+        clearForms();
+        document.getElementById('char-id').value = char.id;
+        document.getElementById('char-name').value = char.name;
+        document.getElementById('char-persona').value = char.persona;
+        document.getElementById('char-greeting').value = char.greeting;
+        document.getElementById('delete-char-btn').classList.remove('hidden');
+        showEditor('char');
+    }
+    async function deleteCharacter() { /* ... unchanged, but reloads everything ... */
+        const id = parseInt(document.getElementById('char-id').value);
+        if (!id || !confirm('删除角色将一并删除所有包含该角色的群聊和相关聊天记录。确定吗？')) return;
+        
+        // Delete character, then groups containing it, then all related chat history.
+        await new Promise(r => getStore('characters', 'readwrite').delete(id).onsuccess = r);
+        
+        const groupStore = getStore('groups', 'readwrite');
+        const groups = await new Promise(r => groupStore.getAll().onsuccess = e => r(e.target.result));
+        const groupsToDelete = groups.filter(g => g.characterIds.includes(id));
+        for (const group of groupsToDelete) {
+            await new Promise(r => groupStore.delete(group.id).onsuccess = r);
+            await new Promise(r => deleteChatHistory(`group_${group.id}`).onsuccess = r);
+        }
+        await deleteChatHistory(`char_${id}`);
+
+        clearForms(); showEditor(null); loadAndRenderAll();
+        if (currentState.sessionId === `char_${id}`) showWelcomeScreen();
+    }
+    
+    async function saveGroup(e) {
+        e.preventDefault();
+        const id = document.getElementById('group-id').value;
+        const selectedChars = Array.from(document.querySelectorAll('#group-char-selection input:checked')).map(el => parseInt(el.value));
+        if (selectedChars.length < 2) {
+            alert('群聊至少需要2个角色。');
+            return;
+        }
+        const data = {
+            name: document.getElementById('group-name').value,
+            characterIds: selectedChars
+        };
+        const store = getStore('groups', 'readwrite');
+        const req = id ? store.put({ ...data, id: parseInt(id) }) : store.add(data);
+        req.onsuccess = () => { clearForms(); showEditor(null); loadAndRenderAll(); };
+    }
+    async function editGroup(id) {
+        const store = getStore('groups', 'readonly');
+        store.get(id).onsuccess = e => {
+            const group = e.target.result;
+            clearForms();
+            document.getElementById('group-id').value = group.id;
+            document.getElementById('group-name').value = group.name;
+            document.querySelectorAll('#group-char-selection input').forEach(el => {
+                el.checked = group.characterIds.includes(parseInt(el.value));
+            });
+            document.getElementById('delete-group-btn').classList.remove('hidden');
+            showEditor('group');
+        };
+    }
+    async function deleteGroup() {
+        const id = parseInt(document.getElementById('group-id').value);
+        if (!id || !confirm('确定删除此群组及其聊天记录吗?')) return;
+        await new Promise(r => getStore('groups', 'readwrite').delete(id).onsuccess = r);
+        await deleteChatHistory(`group_${id}`);
+        clearForms(); showEditor(null); loadAndRenderAll();
+        if (currentState.sessionId === `group_${id}`) showWelcomeScreen();
+    }
+
+    async function saveWorldbook(e) { e.preventDefault(); /* ... unchanged ... */ 
+        const id = document.getElementById('world-id').value;
+        const data = {
+            keywords: document.getElementById('world-keywords').value,
+            content: document.getElementById('world-content').value,
+        };
+        const store = getStore('worldbooks', 'readwrite');
+        const req = id ? store.put({ ...data, id: parseInt(id) }) : store.add(data);
+        req.onsuccess = () => { clearForms(); showEditor(null); loadAndRenderAll(); };
+    }
+    async function editWorldbook(id) { /* ... unchanged ... */ 
+        const store = getStore('worldbooks', 'readonly');
+        store.get(id).onsuccess = e => {
+            const entry = e.target.result;
+            clearForms();
+            document.getElementById('world-id').value = entry.id;
+            document.getElementById('world-keywords').value = entry.keywords;
+            document.getElementById('world-content').value = entry.content;
+            document.getElementById('delete-world-btn').classList.remove('hidden');
+            showEditor('world');
+        };
+    }
+    async function deleteWorldbook() { /* ... unchanged ... */ 
+        const id = parseInt(document.getElementById('world-id').value);
+        if (!id || !confirm('确定删除此条目吗?')) return;
+        getStore('worldbooks', 'readwrite').delete(id).onsuccess = () => {
+            clearForms(); showEditor(null); loadAndRenderAll();
+        };
+    }
+
+    // --- SESSION & CHAT LOGIC ---
+    function showWelcomeScreen() {
+        document.getElementById('chat-area').classList.add('hidden');
+        document.getElementById('chat-welcome').classList.remove('hidden');
+        currentState.sessionId = null;
+        currentState.sessionType = null;
+    }
+
+    async function selectSession(id, type) {
+        currentState.sessionId = `${type}_${id}`;
+        currentState.sessionType = type;
+        
+        document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+        document.querySelector(`.sidebar-item[data-id='${id}'][data-type='${type}']`)?.classList.add('active');
+        
+        document.getElementById('chat-welcome').classList.add('hidden');
+        document.getElementById('chat-area').classList.remove('hidden');
+        
+        let sessionName = '';
+        let participants = '';
+        let initialMessages = [];
+
+        if (type === 'character') {
+            const char = currentState.characterCache.get(id);
+            sessionName = char.name;
+            initialMessages.push({ role: 'char', content: char.greeting, characterId: id, characterName: char.name });
+        } else { // group
+            const store = getStore('groups', 'readonly');
+            const group = await new Promise(r => store.get(id).onsuccess = e => r(e.target.result));
+            sessionName = group.name;
+            const charNames = group.characterIds.map(cid => currentState.characterCache.get(cid)?.name || '未知角色');
+            participants = `参与者: ${charNames.join(', ')}`;
+            initialMessages.push({ role: 'system', content: `群聊 "${group.name}" 开始了。` });
+        }
+        
+        document.getElementById('chat-session-name').textContent = sessionName;
+        document.getElementById('chat-participants').textContent = participants;
+        
+        loadChatHistory(currentState.sessionId, initialMessages);
+    }
+
+    async function loadChatHistory(sessionId, initialMessages) {
+        const historyDiv = document.getElementById('chat-history');
+        historyDiv.innerHTML = '';
+        const store = getStore('chat_history', 'readonly');
+        const index = store.index('sessionId');
+        const messages = await new Promise(r => index.getAll(sessionId).onsuccess = e => r(e.target.result));
+        
+        if (messages.length === 0 && initialMessages.length > 0) {
+            for (const msg of initialMessages) {
+                addMessageToChat(msg.role, msg.content, msg.characterName);
+                if (msg.role !== 'system') {
+                    saveMessage(sessionId, msg.role, msg.content, msg.characterId, msg.characterName);
+                }
+            }
+        } else {
+            messages.forEach(msg => addMessageToChat(msg.role, msg.content, msg.characterName));
+        }
+    }
+
+    function addMessageToChat(role, content, characterName = null) {
+        const historyDiv = document.getElementById('chat-history');
+        const msgWrapper = document.createElement('div');
+        const bubble = document.createElement('div');
+        
+        msgWrapper.classList.add('flex', 'flex-col');
+        bubble.classList.add('p-3', 'rounded-lg', 'chat-bubble');
+        
+        if (role === 'user') {
+            msgWrapper.classList.add('items-end');
+            bubble.classList.add('chat-bubble-user');
+            bubble.textContent = content;
+        } else if (role === 'system') {
+            msgWrapper.classList.add('items-center');
+            bubble.classList.add('text-sm', 'text-gray-400', 'italic', 'text-center');
+            bubble.textContent = content;
+        } else { // char
+            msgWrapper.classList.add('items-start');
+            bubble.classList.add('chat-bubble-char');
+            const speaker = document.createElement('div');
+            speaker.className = 'speaker-name';
+            speaker.textContent = characterName || '旁白';
+            msgWrapper.appendChild(speaker);
+            bubble.textContent = content;
+        }
+        
+        msgWrapper.appendChild(bubble);
+        historyDiv.appendChild(msgWrapper);
+        historyDiv.scrollTop = historyDiv.scrollHeight;
+    }
+
+    function saveMessage(sessionId, role, content, characterId = null, characterName = null) {
+        const store = getStore('chat_history', 'readwrite');
+        store.add({ sessionId, role, content, characterId, characterName, timestamp: new Date() });
+    }
+
+    function deleteChatHistory(sessionId) {
+        const store = getStore('chat_history', 'readwrite');
+        const index = store.index('sessionId');
+        const request = index.openCursor(IDBKeyRange.only(sessionId));
+        request.onsuccess = e => {
+            const cursor = e.target.result;
+            if (cursor) {
+                cursor.delete();
+                cursor.continue();
+            }
+        };
+        return request;
+    }
+
+    async function handleSendMessage() {
+        const text = document.getElementById('user-input').value.trim();
+        if (!text || !currentState.sessionId) return;
+
+        addMessageToChat('user', text);
+        saveMessage(currentState.sessionId, 'user', text);
+        document.getElementById('user-input').value = '';
+        addMessageToChat('char', '思考中...', 'AI');
+        
+        try {
+            const prompt = await constructPrompt();
+            const responseText = await getAIResponse(prompt);
+            document.getElementById('chat-history').lastChild.remove(); // Remove "Thinking..."
+            
+            // Parse response
+            let characterName = null, content = responseText;
+            const parts = responseText.split(':');
+            const potentialName = parts[0].trim();
+            
+            // Check if prefix is a valid character name in this session
+            const participants = await getSessionParticipants();
+            const speakingChar = participants.find(p => p.name === potentialName);
+            
+            if (speakingChar && parts.length > 1) {
+                characterName = speakingChar.name;
+                content = parts.slice(1).join(':').trim();
+            }
+            
+            addMessageToChat('char', content, characterName);
+            saveMessage(currentState.sessionId, 'char', content, speakingChar?.id, characterName);
+
+        } catch (error) {
+            console.error('Error getting AI response:', error);
+            document.getElementById('chat-history').lastChild.remove();
+            addMessageToChat('char', `抱歉，我出错了: ${error.message}`, '系统');
+        }
+    }
+
+    async function getSessionParticipants() {
+        if (currentState.sessionType === 'character') {
+            const charId = parseInt(currentState.sessionId.split('_')[1]);
+            return [currentState.characterCache.get(charId)];
+        } else if (currentState.sessionType === 'group') {
+            const groupId = parseInt(currentState.sessionId.split('_')[1]);
+            const store = getStore('groups', 'readonly');
+            const group = await new Promise(r => store.get(groupId).onsuccess = e => r(e.target.result));
+            return group.characterIds.map(cid => currentState.characterCache.get(cid));
+        }
+        return [];
+    }
+
+    async function constructPrompt() {
+        // 1. Get participants and history
+        const participants = await getSessionParticipants();
+        const chatStore = getStore('chat_history', 'readonly');
+        const historyReq = chatStore.index('sessionId').getAll(currentState.sessionId);
+        const history = (await new Promise(r => historyReq.onsuccess = e => r(e.target.result))).slice(-15);
+
+        // 2. Get triggered worldbooks
+        const worldStore = getStore('worldbooks', 'readonly');
+        const worldbooks = await new Promise(r => worldStore.getAll().onsuccess = e => r(e.target.result));
+        const convoText = history.map(h => h.content).join('\n');
+        const triggeredWorlds = worldbooks.filter(w => w.keywords.split(',').some(k => convoText.toLowerCase().includes(k.trim().toLowerCase())));
+
+        // 3. Assemble prompt
+        let prompt = "[System Note: This is a roleplay conversation. Do not break character. Do not describe actions in italics or asterisks. Your response should be plain text from the character's perspective.]\n\n";
+
+        prompt += "== CHARACTERS IN THIS SCENE ==\n";
+        participants.forEach(p => {
+            prompt += `Name: ${p.name}\nPersona: ${p.persona}\n\n`;
+        });
+        
+        if (triggeredWorlds.length > 0) {
+            prompt += "== RELEVANT WORLDBOOK ENTRIES ==\n";
+            triggeredWorlds.forEach(w => prompt += `Content for "${w.keywords}": ${w.content}\n\n`);
+        }
+
+        prompt += "== RECENT CONVERSATION HISTORY ==\n";
+        history.forEach(msg => {
+            const speaker = msg.role === 'user' ? 'User' : msg.characterName || 'Narration';
+            prompt += `${speaker}: ${msg.content}\n`;
+        });
+        
+        if (currentState.sessionType === 'group') {
+             prompt += `\n[System Note: You are the master of this roleplay. Based on the characters' personas and the conversation history, decide which character should speak next. Your ENTIRE response MUST be in the format 'CharacterName: Their dialogue here'. For example: 'Bob: Hello everyone.' If the response is narration, just provide the text without a prefix.]`;
+        } else {
+            prompt += `\n[System Note: Now, continue the roleplay as ${participants[0].name}. Your response must be in character and should NOT include your name as a prefix. Just write the response directly.]\n`;
+        }
+
+        return prompt;
+    }
+    
+    async function getAIResponse(prompt) { /* Unchanged from previous version */
+        console.log("--- PROMPT SENT TO AI ---\n", prompt);
+        let chatHistory = [{ role: "user", content:  prompt }];
+        const payload = {
+            model: "deepseek-ai/DeepSeek-R1-Turbo",
+            messages: chatHistory
+        };
+        const apiKey = "";
+        const apiUrl = `https://api.deepinfra.com/v1/openai/chat/completions`;
+        
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok) {
+            const errorBody = await response.json();
+            throw new Error(`API Error: ${errorBody.error?.message || 'Unknown'}`);
+        }
+
+        const result = await response.json();
+        
+        if (result.choices && result.choices[0]?.message?.content) {
+            let content = result.choices[0].message.content;
+            return content.replace(/<think>[\s\S]*?<\/think>/g, '');
+        } else {
+            if (result.promptFeedback?.blockReason) {
+                return `[内容被阻止: ${result.promptFeedback.blockReason}]`;
+            }
+            return "[AI未能生成有效回复]";
+        }
+    }
+    
+    // --- INITIALIZATION ---
+    window.onload = async () => {
+        try {
+            await initDB();
+            populateEditors();
+            await loadAndRenderAll();
+
+            document.getElementById('new-char-btn').addEventListener('click', () => { clearForms(); showEditor('char'); });
+            document.getElementById('new-group-btn').addEventListener('click', () => { clearForms(); showEditor('group'); });
+            document.getElementById('new-world-btn').addEventListener('click', () => { clearForms(); showEditor('world'); });
+            document.getElementById('send-btn').addEventListener('click', handleSendMessage);
+            document.getElementById('user-input').addEventListener('keydown', e => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); }
+            });
+        } catch (error) {
+            document.body.innerHTML = `<div class="text-red-500 p-8">初始化失败: ${error}</div>`;
+        }
+    };
+    </script>
+</body>
+</html>
