@@ -120,13 +120,24 @@
             </div>
             <div>
                 <h3 class="text-lg font-semibold mb-3" data-i18n="createWorldTitle">或者, 创建一个新世界</h3>
-                <div class="flex space-x-3">
+                <div class="flex space-x-3 mb-4">
                     <input type="text" id="new-world-name" data-i18n-placeholder="newWorldPlaceholder"
                         placeholder="输入新世界的名称..."
                         class="flex-grow bg-gray-700 p-3 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500">
                     <button id="create-world-btn"
                         class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-5 rounded-lg"
                         data-i18n="createWorldBtn">创建</button>
+                </div>
+                <div class="border-t border-gray-600 pt-4">
+                    <h3 class="text-lg font-semibold mb-3" data-i18n="importWorldTitle">导入世界</h3>
+                    <div class="flex flex-col space-y-3">
+                        <input type="file" id="import-world-file" accept=".json" 
+                            class="hidden">
+                        <button id="import-world-btn"
+                            class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-5 rounded-lg"
+                            data-i18n="importWorldBtn">选择JSON文件导入</button>
+                        <div id="import-status" class="text-sm text-gray-400 hidden"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -223,6 +234,7 @@
                     langSwitcherLabel: '语言: 简体中文', appTitle: '3000World',
                     selectWorldTitle: '选择一个世界', enterWorldBtn: '进入',
                     createWorldTitle: '或者, 创建一个新世界', newWorldPlaceholder: '输入新世界的名称...', createWorldBtn: '创建',
+                    importWorldTitle: '导入世界', importWorldBtn: '选择JSON文件导入',
                     groupChatTitle: '群聊', newGroupBtn: '创建新群组',
                     characterCardTitle: '角色卡片', newCharBtn: '创建新角色',
                     worldBookTitle: '世界设定集', newWorldEntryBtn: '创建新条目',
@@ -241,6 +253,7 @@
                     langSwitcherLabel: 'Language: English', appTitle: '3000World',
                     selectWorldTitle: 'Select a World', enterWorldBtn: 'Enter',
                     createWorldTitle: 'Or, Create a New World', newWorldPlaceholder: 'Enter new world name...', createWorldBtn: 'Create',
+                    importWorldTitle: 'Import World', importWorldBtn: 'Select JSON File to Import',
                     groupChatTitle: 'Group Chats', newGroupBtn: 'New Group',
                     characterCardTitle: 'Characters', newCharBtn: 'New Character',
                     worldBookTitle: 'Worldbook', newWorldEntryBtn: 'New Entry',
@@ -348,6 +361,103 @@
                 } catch (error) {
                     showToast(`${i18n[currentLang].alertEnterWorldFailed}: ${error}`);
                 }
+            }
+
+            async function importWorld(worldData, worldName) {
+                const dbName = `${DB_PREFIX}${worldName}`;
+                try {
+                    // 创建新的数据库
+                    db = await initDB(dbName);
+                    
+                    // 导入角色数据
+                    if (worldData.characters && worldData.characters.length > 0) {
+                        const charStore = getStore('characters', 'readwrite');
+                        for (const char of worldData.characters) {
+                            const { id, ...charData } = char; // 移除原ID，让数据库自动生成新ID
+                            charStore.add(charData);
+                        }
+                    }
+                    
+                    // 导入群组数据
+                    if (worldData.groups && worldData.groups.length > 0) {
+                        const groupStore = getStore('groups', 'readwrite');
+                        for (const group of worldData.groups) {
+                            const { id, ...groupData } = group;
+                            groupStore.add(groupData);
+                        }
+                    }
+                    
+                    // 导入世界设定数据
+                    if (worldData.worldbooks && worldData.worldbooks.length > 0) {
+                        const worldStore = getStore('worldbooks', 'readwrite');
+                        for (const entry of worldData.worldbooks) {
+                            const { id, ...entryData } = entry;
+                            worldStore.add(entryData);
+                        }
+                    }
+                    
+                    // 导入配置数据
+                    if (worldData.config) {
+                        const configStore = getStore('config', 'readwrite');
+                        configStore.put(worldData.config.apiKey || '', 'apiKey');
+                        configStore.put(worldData.config.apiUrl || 'https://api.deepinfra.com/v1/openai/chat/completions', 'apiUrl');
+                        configStore.put(worldData.config.model || 'deepseek-ai/DeepSeek-R1-Turbo', 'model');
+                    }
+                    
+                    // 等待所有操作完成
+                    await new Promise(resolve => {
+                        const transaction = db.transaction(['characters', 'groups', 'worldbooks', 'config'], 'readwrite');
+                        transaction.oncomplete = resolve;
+                    });
+                    
+                    await loadWorldConfig();
+                    $('#world-selector-dialog').fadeOut(300);
+                    $('#main-app').removeClass('hidden');
+                    initializeAppLogic();
+                    
+                    return true;
+                } catch (error) {
+                    console.error('Import error:', error);
+                    throw error;
+                }
+            }
+
+            function handleImportFile() {
+                const fileInput = document.getElementById('import-world-file');
+                const file = fileInput.files[0];
+                
+                if (!file) return;
+                
+                const $status = $('#import-status');
+                $status.removeClass('hidden text-red-400 text-green-400').addClass('text-blue-400').text('正在读取文件...');
+                
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    try {
+                        const worldData = JSON.parse(e.target.result);
+                        
+                        // 验证JSON结构
+                        if (!worldData.worldName) {
+                            throw new Error('JSON文件缺少worldName字段');
+                        }
+                        
+                        $status.text('正在导入世界数据...');
+                        
+                        await importWorld(worldData, worldData.worldName);
+                        
+                        $status.removeClass('text-blue-400').addClass('text-green-400').text('世界导入成功！');
+                        
+                    } catch (error) {
+                        console.error('Import failed:', error);
+                        $status.removeClass('text-blue-400').addClass('text-red-400').text(`导入失败: ${error.message}`);
+                    }
+                };
+                
+                reader.onerror = function() {
+                    $status.removeClass('text-blue-400').addClass('text-red-400').text('文件读取失败');
+                };
+                
+                reader.readAsText(file);
             }
 
             // --- DATABASE (IndexedDB) SETUP ---
@@ -963,6 +1073,8 @@
                 else showToast('alertSelectWorld');
             });
             $('#new-world-name').on('keydown', e => { if (e.key === 'Enter') $('#create-world-btn').trigger('click'); });
+            $('#import-world-btn').on('click', () => $('#import-world-file').click());
+            $('#import-world-file').on('change', handleImportFile);
             $('#lang-switcher').on('click', () => { const newLang = currentLang === 'zh-CN' ? 'en-US' : 'zh-CN'; setLanguage(newLang, true); });
 
             setLanguage(getLanguage());
