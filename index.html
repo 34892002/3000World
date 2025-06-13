@@ -20,12 +20,24 @@
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #6b7280; }
         .sidebar-item:hover, .sidebar-item.active { background-color: #374151; }
         #group-char-selection label { display: block; margin-bottom: 0.5rem; }
+        .shake {
+            animation: shake 0.5s;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-white overflow-hidden">
 
+    <!-- Toast Notification -->
+    <div id="toast-notification" class="hidden fixed top-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg z-50"></div>
+
     <!-- World Selection Dialog -->
-    <div id="world-selector-dialog" class="fixed inset-0 bg-gray-900 bg-opacity-80 flex items-center justify-center z-50">
+    <div id="world-selector-dialog" class="fixed inset-0 bg-gray-900 bg-opacity-80 flex items-center justify-center z-40">
         <div class="bg-gray-800 rounded-lg shadow-xl p-8 w-full max-w-md relative">
             <div class="absolute top-4 right-4">
                 <button id="lang-switcher" class="text-sm text-gray-400 hover:text-white" data-i18n="langSwitcherLabel">语言: 简体中文</button>
@@ -52,20 +64,26 @@
     <div id="main-app" class="hidden flex h-screen">
         <!-- Left Sidebar -->
         <aside class="w-1/4 bg-gray-800 p-4 flex flex-col custom-scrollbar overflow-y-auto">
-            <div class="mb-6">
-                <h2 class="text-xl font-bold mb-3" data-i18n="groupChatTitle">群聊</h2>
-                <button id="new-group-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg mb-3" data-i18n="newGroupBtn">创建新群组</button>
-                <ul id="group-list" class="space-y-2"></ul>
+            <div class="flex-grow">
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold mb-3" data-i18n="groupChatTitle">群聊</h2>
+                    <button id="new-group-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg mb-3" data-i18n="newGroupBtn">创建新群组</button>
+                    <ul id="group-list" class="space-y-2"></ul>
+                </div>
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold mb-3" data-i18n="characterCardTitle">角色卡片</h2>
+                    <button id="new-char-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg mb-3" data-i18n="newCharBtn">创建新角色</button>
+                    <ul id="char-list" class="space-y-2"></ul>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold mb-3" data-i18n="worldBookTitle">世界设定集</h2>
+                    <button id="new-world-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg mb-3" data-i18n="newWorldEntryBtn">创建新条目</button>
+                    <ul id="world-list" class="space-y-2"></ul>
+                </div>
             </div>
-            <div class="mb-6">
-                <h2 class="text-xl font-bold mb-3" data-i18n="characterCardTitle">角色卡片</h2>
-                <button id="new-char-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg mb-3" data-i18n="newCharBtn">创建新角色</button>
-                <ul id="char-list" class="space-y-2"></ul>
-            </div>
-            <div>
-                <h2 class="text-xl font-bold mb-3" data-i18n="worldBookTitle">世界设定集</h2>
-                <button id="new-world-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg mb-3" data-i18n="newWorldEntryBtn">创建新条目</button>
-                <ul id="world-list" class="space-y-2"></ul>
+            <div class="flex-shrink-0">
+                <h2 class="text-xl font-bold mb-3" data-i18n="worldSettingsTitle">世界配置</h2>
+                <button id="edit-config-btn" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg" data-i18n="editConfigBtn">编辑配置</button>
             </div>
         </aside>
 
@@ -100,6 +118,7 @@
                     <h3 class="text-xl font-bold mb-2" data-i18n="editorTitle">编辑器</h3>
                     <p data-i18n="editorWelcomeMessage">点击 "创建" 或选择现有条目进行编辑。</p>
                 </div>
+                <form id="config-editor" class="hidden space-y-4"></form>
                 <form id="group-editor" class="hidden space-y-4"></form>
                 <form id="char-editor" class="hidden space-y-4"></form>
                 <form id="world-editor" class="hidden space-y-4"></form>
@@ -119,9 +138,15 @@
             groupChatTitle: '群聊', newGroupBtn: '创建新群组',
             characterCardTitle: '角色卡片', newCharBtn: '创建新角色',
             worldBookTitle: '世界设定集', newWorldEntryBtn: '创建新条目',
+            worldSettingsTitle: '世界配置', editConfigBtn: '编辑配置',
             welcomeTitle: '欢迎使用', welcomeMessage: '从左侧选择一个群组或角色开始对话。',
             userInputPlaceholder: '输入你的消息, 可使用 @ 来提及角色...', sendBtn: '发送',
-            editorTitle: '编辑器', editorWelcomeMessage: '点击 "创建" 或选择现有条目进行编辑。'
+            editorTitle: '编辑器', editorWelcomeMessage: '点击 "创建" 或选择现有条目进行编辑。',
+            configEditorTitle: '世界配置', apiKeyLabel: 'API Key', apiUrlLabel: 'API URL', saveConfigBtn: '保存配置',
+            alertWorldNameEmpty: '世界名称不能为空！', alertSelectWorld: '请从下拉列表中选择一个世界。',
+            alertEnterWorldFailed: '进入世界失败', alertConfigSaved: '配置已保存！', alertLangChanged: '语言已切换！',
+            charNameCannotBeEmpty: '角色名称不能为空。', groupNeedOneChar: '群聊至少需要1个角色。',
+            deleteConfirm: '确认删除？', deleteChar: '删除角色', deleteGroup: '删除群组', deleteEntry: '删除条目'
         },
         'en-US': {
             langSwitcherLabel: 'Language: English', appTitle: '3000World',
@@ -130,15 +155,21 @@
             groupChatTitle: 'Group Chats', newGroupBtn: 'New Group',
             characterCardTitle: 'Characters', newCharBtn: 'New Character',
             worldBookTitle: 'Worldbook', newWorldEntryBtn: 'New Entry',
+            worldSettingsTitle: 'World Settings', editConfigBtn: 'Edit Settings',
             welcomeTitle: 'Welcome', welcomeMessage: 'Select a group or character from the left to start chatting.',
             userInputPlaceholder: 'Type your message, use @ to mention characters...', sendBtn: 'Send',
-            editorTitle: 'Editor', editorWelcomeMessage: 'Click "Create" or select an existing item to edit.'
+            editorTitle: 'Editor', editorWelcomeMessage: 'Click "Create" or select an existing item to edit.',
+            configEditorTitle: 'World Settings', apiKeyLabel: 'API Key', apiUrlLabel: 'API URL', saveConfigBtn: 'Save Settings',
+            alertWorldNameEmpty: 'World name cannot be empty!', alertSelectWorld: 'Please select a world from the dropdown.',
+            alertEnterWorldFailed: 'Failed to enter world', alertConfigSaved: 'Settings saved!', alertLangChanged: 'Language Changed!',
+            charNameCannotBeEmpty: 'Character name cannot be empty.', groupNeedOneChar: 'Group chat needs at least one character.',
+            deleteConfirm: 'Confirm Deletion?', deleteChar: 'Delete Character', deleteGroup: 'Delete Group', deleteEntry: 'Delete Entry'
         }
     };
 
     let currentLang = 'zh-CN';
 
-    function setLanguage(lang) {
+    function setLanguage(lang, showNotification = false) {
         if (!i18n[lang]) lang = 'zh-CN'; // Fallback
         currentLang = lang;
         localStorage.setItem('3000world-lang', lang);
@@ -152,6 +183,10 @@
             const key = $(this).data('i18n-placeholder');
             if (strings[key]) $(this).attr('placeholder', strings[key]);
         });
+        
+        if (showNotification) {
+            showToast('alertLangChanged', false);
+        }
     }
 
     function getLanguage() {
@@ -160,19 +195,30 @@
 
     // --- GLOBAL APP STATE ---
     const DB_PREFIX = '3000World_';
-    const DB_VERSION = 2;
-    let db; // This will hold the connection to the selected world's database
+    const DB_VERSION = 3; 
+    let db;
 
     let currentState = {
-        sessionId: null,
-        sessionType: null,
+        sessionId: null, sessionType: null,
         characterCache: new Map(),
+        worldConfig: { apiKey: '', apiUrl: '' }
     };
+
+    // --- UTILITY: TOAST NOTIFICATION ---
+    function showToast(messageKey, isError = true) {
+        const message = i18n[currentLang][messageKey] || messageKey;
+        const $toast = $('#toast-notification');
+        $toast.text(message)
+              .removeClass('bg-red-500 bg-green-500')
+              .addClass(isError ? 'bg-red-500' : 'bg-green-500')
+              .fadeIn(300);
+        setTimeout(() => $toast.fadeOut(300), 3000);
+    }
 
     // --- STARTUP LOGIC: WORLD SELECTION ---
     async function showWorldSelectionDialog() {
         if (!window.indexedDB.databases) {
-            $('#existing-worlds-container').html('<p class="text-yellow-400 text-sm">您的浏览器不支持数据库列表，请直接创建新世界。</p>');
+            $('#existing-worlds-container').html(`<p class="text-yellow-400 text-sm">${i18n[currentLang].alertBrowserSupport}</p>`);
             return;
         }
 
@@ -184,57 +230,34 @@
             $('#existing-worlds-container').hide();
         } else {
             $('#existing-worlds-container').show();
-            $dropdown.append($('<option>').text('请选择...').val(''));
+            $dropdown.append($('<option>').text(i18n[currentLang].selectWorldTitle + '...').val(''));
             worldDbs.forEach(dbInfo => {
                 const worldName = dbInfo.name.replace(DB_PREFIX, '');
-                const $option = $('<option></option>').text(worldName).val(worldName);
-                $dropdown.append($option);
+                $('<option></option>').text(worldName).val(worldName).appendTo($dropdown);
             });
         }
     }
     
     async function enterWorld(worldName) {
         if (!worldName) {
-            alert('世界名称不能为空！');
+            const $input = $('#new-world-name');
+            showToast('alertWorldNameEmpty');
+            $input.addClass('shake border-red-500').focus();
+            setTimeout(() => $input.removeClass('shake border-red-500'), 500);
             return;
         }
 
         const dbName = `${DB_PREFIX}${worldName}`;
         try {
             db = await initDB(dbName);
+            await loadWorldConfig();
             $('#world-selector-dialog').fadeOut(300);
             $('#main-app').removeClass('hidden');
-            initializeAppLogic(); // Initialize the rest of the app
+            initializeAppLogic();
         } catch (error) {
-            alert(`进入世界失败: ${error}`);
+            showToast(`${i18n[currentLang].alertEnterWorldFailed}: ${error}`);
         }
     }
-
-    $('#create-world-btn').on('click', () => {
-        const newWorldName = $('#new-world-name').val().trim();
-        enterWorld(newWorldName);
-    });
-
-    $('#enter-world-btn').on('click', () => {
-        const selectedWorld = $('#world-select-dropdown').val();
-        if (selectedWorld) {
-            enterWorld(selectedWorld);
-        } else {
-            alert('请从下拉列表中选择一个世界。');
-        }
-    });
-
-    $('#new-world-name').on('keydown', (e) => {
-        if (e.key === 'Enter') {
-            const newWorldName = $('#new-world-name').val().trim();
-            enterWorld(newWorldName);
-        }
-    });
-    
-    $('#lang-switcher').on('click', () => {
-        const newLang = currentLang === 'zh-CN' ? 'en-US' : 'zh-CN';
-        setLanguage(newLang);
-    });
 
     // --- DATABASE (IndexedDB) SETUP ---
     function initDB(dbName) {
@@ -246,6 +269,7 @@
                 if (!db.objectStoreNames.contains('characters')) db.createObjectStore('characters', { keyPath: 'id', autoIncrement: true });
                 if (!db.objectStoreNames.contains('worldbooks')) db.createObjectStore('worldbooks', { keyPath: 'id', autoIncrement: true });
                 if (!db.objectStoreNames.contains('groups')) db.createObjectStore('groups', { keyPath: 'id', autoIncrement: true });
+                if (!db.objectStoreNames.contains('config')) db.createObjectStore('config');
                 if (db.objectStoreNames.contains('chat_history')) db.deleteObjectStore('chat_history');
                 const chatStore = db.createObjectStore('chat_history', { keyPath: 'id', autoIncrement: true });
                 chatStore.createIndex('sessionId', 'sessionId', { unique: false });
@@ -256,6 +280,48 @@
             };
         });
     }
+    
+    // --- CONFIGURATION MANAGEMENT ---
+    async function loadWorldConfig() {
+        const store = getStore('config', 'readonly');
+        const [apiKeyReq, apiUrlReq] = [store.get('apiKey'), store.get('apiUrl')];
+
+        const apiKey = await new Promise(r => { apiKeyReq.onsuccess = () => r(apiKeyReq.result); apiKeyReq.onerror = () => r(undefined); });
+        const apiUrl = await new Promise(r => { apiUrlReq.onsuccess = () => r(apiUrlReq.result); apiUrlReq.onerror = () => r(undefined); });
+
+        if (apiKey === undefined || apiUrl === undefined) {
+            const defaultConfig = {
+                apiKey: '',
+                apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
+            };
+            const writeTx = db.transaction('config', 'readwrite');
+            const writeStore = writeTx.objectStore('config');
+            writeStore.put(defaultConfig.apiKey, 'apiKey');
+            writeStore.put(defaultConfig.apiUrl, 'apiUrl');
+            await new Promise(r => writeTx.oncomplete = r);
+            currentState.worldConfig = defaultConfig;
+        } else {
+            currentState.worldConfig = { apiKey, apiUrl };
+        }
+    }
+    
+    function saveWorldConfig(e) {
+        e.preventDefault();
+        const newConfig = { apiKey: $('#config-api-key').val(), apiUrl: $('#config-api-url').val() };
+        const store = getStore('config', 'readwrite');
+        store.put(newConfig.apiKey, 'apiKey');
+        store.put(newConfig.apiUrl, 'apiUrl');
+        currentState.worldConfig = newConfig;
+        showToast('alertConfigSaved', false);
+        showEditor(null);
+    }
+    
+    function editWorldConfig() {
+        clearForms();
+        $('#config-api-key').val(currentState.worldConfig.apiKey);
+        $('#config-api-url').val(currentState.worldConfig.apiUrl);
+        showEditor('config');
+    }
 
     // --- UTILITY & CORE FUNCTIONS ---
     function getStore(storeName, mode) {
@@ -263,17 +329,17 @@
     }
     
     function showEditor(type) {
-        $('#editor-welcome, #char-editor, #world-editor, #group-editor').hide();
+        $('#editor-welcome, #char-editor, #world-editor, #group-editor, #config-editor').hide();
         if (type) $(`#${type}-editor`).show();
         else { $('#editor-welcome').show(); clearForms(); }
     }
 
     function clearForms() {
-        $('#char-editor, #world-editor, #group-editor').each(function() { this.reset(); });
-        $('#char-id, #world-id, #group-id').val('');
-        const buttons = { 'delete-char-btn': '删除角色', 'delete-group-btn': '删除群组', 'delete-world-btn': '删除条目' };
-        for (const [btnId, text] of Object.entries(buttons)) {
-            $(`#${btnId}`).hide().removeAttr('data-confirming').text(text)
+        $('form').each(function() { this.reset(); });
+        $('input[type=hidden]').val('');
+        const buttons = { 'delete-char-btn': 'deleteChar', 'delete-group-btn': 'deleteGroup', 'delete-world-btn': 'deleteEntry' };
+        for (const [btnId, textKey] of Object.entries(buttons)) {
+            $(`#${btnId}`).hide().removeAttr('data-confirming').text(i18n[currentLang][textKey])
                 .removeClass('bg-yellow-500 hover:bg-yellow-600').addClass('bg-red-600 hover:bg-red-700');
         }
     }
@@ -288,121 +354,66 @@
     }
     
     function populateEditors() {
-        $('#char-editor').html(`
-            <input type="hidden" id="char-id">
-            <div><label for="char-name" class="block text-sm font-medium">角色名称</label><input type="text" id="char-name" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></div>
-            <div><label for="char-persona" class="block text-sm font-medium">角色设定</label><textarea id="char-persona" rows="8" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></textarea></div>
-            <div><label for="char-greeting" class="block text-sm font-medium">开场白</label><textarea id="char-greeting" rows="4" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></textarea></div>
-            <div class="flex space-x-2"><button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">保存角色</button><button type="button" id="delete-char-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg hidden">删除角色</button></div>
-        `).on('submit', saveCharacter);
-        $('#delete-char-btn').on('click', deleteCharacter);
-
-        $('#world-editor').html(`
-            <input type="hidden" id="world-id">
-            <div><label for="world-keywords" class="block text-sm font-medium">关键词</label><input type="text" id="world-keywords" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></div>
-            <div><label for="world-content" class="block text-sm font-medium">内容</label><textarea id="world-content" rows="10" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></textarea></div>
-            <div class="flex space-x-2"><button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">保存条目</button><button type="button" id="delete-world-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg hidden">删除条目</button></div>
-        `).on('submit', saveWorldbook);
-        $('#delete-world-btn').on('click', deleteWorldbook);
-        
-        $('#group-editor').html(`
-            <input type="hidden" id="group-id">
-            <div><label for="group-name" class="block text-sm font-medium">群组名称</label><input type="text" id="group-name" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></div>
-            <div><label class="block text-sm font-medium">选择角色</label><div id="group-char-selection" class="mt-2 p-2 bg-gray-700 rounded-lg max-h-60 overflow-y-auto custom-scrollbar"></div></div>
-            <div class="flex space-x-2"><button type="submit" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg">保存群组</button><button type="button" id="delete-group-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg hidden">删除群组</button></div>
-        `).on('submit', saveGroup);
-        $('#delete-group-btn').on('click', deleteGroup);
+        const t = i18n[currentLang];
+        $('#config-editor').html(`<h3 class="text-xl font-bold mb-4">${t.configEditorTitle}</h3><div><label for="config-api-key" class="block text-sm font-medium">${t.apiKeyLabel}</label><input type="text" id="config-api-key" class="w-full mt-1 p-2 bg-gray-700 rounded-lg"></div><div><label for="config-api-url" class="block text-sm font-medium">${t.apiUrlLabel}</label><input type="text" id="config-api-url" class="w-full mt-1 p-2 bg-gray-700 rounded-lg"></div><div class="flex"><button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">${t.saveConfigBtn}</button></div>`);
+        $('#char-editor').html(`<input type="hidden" id="char-id"><div><label for="char-name" class="block text-sm font-medium">角色名称</label><input type="text" id="char-name" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></div><div><label for="char-persona" class="block text-sm font-medium">角色设定</label><textarea id="char-persona" rows="8" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></textarea></div><div><label for="char-greeting" class="block text-sm font-medium">开场白</label><textarea id="char-greeting" rows="4" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></textarea></div><div class="flex space-x-2"><button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">保存角色</button><button type="button" id="delete-char-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg hidden" data-i18n="deleteChar">删除角色</button></div>`);
+        $('#world-editor').html(`<input type="hidden" id="world-id"><div><label for="world-keywords" class="block text-sm font-medium">关键词</label><input type="text" id="world-keywords" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></div><div><label for="world-content" class="block text-sm font-medium">内容</label><textarea id="world-content" rows="10" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></textarea></div><div class="flex space-x-2"><button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">保存条目</button><button type="button" id="delete-world-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg hidden" data-i18n="deleteEntry">删除条目</button></div>`);
+        $('#group-editor').html(`<input type="hidden" id="group-id"><div><label for="group-name" class="block text-sm font-medium">群组名称</label><input type="text" id="group-name" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></div><div><label class="block text-sm font-medium">选择角色</label><div id="group-char-selection" class="mt-2 p-2 bg-gray-700 rounded-lg max-h-60 overflow-y-auto custom-scrollbar"></div></div><div class="flex space-x-2"><button type="submit" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg">保存群组</button><button type="button" id="delete-group-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg hidden" data-i18n="deleteGroup">删除群组</button></div>`);
     }
     
     function renderListItem($listEl, item, type) {
-        $('<li></li>')
-            .addClass(`sidebar-item p-2 rounded-lg cursor-pointer flex justify-between items-center ${currentState.sessionId === `${type}_${item.id}` ? 'active' : ''}`)
-            .text(item.name).attr({ 'data-id': item.id, 'data-type': type })
-            .append($('<span></span>').text('✏️').addClass('text-sm opacity-50 hover:opacity-100').on('click', e => {
-                e.stopPropagation();
-                if (type === 'character') editCharacter(item.id);
-                else if (type === 'group') editGroup(item.id);
-            }))
-            .on('click', () => selectSession(item.id, type))
-            .appendTo($listEl);
+        $('<li></li>').addClass(`sidebar-item p-2 rounded-lg cursor-pointer flex justify-between items-center ${currentState.sessionId === `${type}_${item.id}` ? 'active' : ''}`).text(item.name).attr({ 'data-id': item.id, 'data-type': type }).append($('<span></span>').text('✏️').addClass('text-sm opacity-50 hover:opacity-100').on('click', e => { e.stopPropagation(); if (type === 'character') editCharacter(item.id); else if (type === 'group') editGroup(item.id); })).on('click', () => selectSession(item.id, type)).appendTo($listEl);
     }
     
-    // --- LOAD & RENDER FUNCTIONS ---
-    async function loadAndRenderAll() {
-        await cacheAllCharacters();
-        loadCharacters();
-        loadGroups();
-        loadWorldbooks();
-    }
-
+    async function loadAndRenderAll() { await cacheAllCharacters(); loadCharacters(); loadGroups(); loadWorldbooks(); }
     async function loadCharacters() {
-        const $charList = $('#char-list').empty();
-        const $groupCharSel = $('#group-char-selection').empty();
+        const $charList = $('#char-list').empty(), $groupCharSel = $('#group-char-selection').empty();
         const chars = Array.from(currentState.characterCache.values());
-        
-        if (chars.length === 0) {
-            $groupCharSel.html('<p class="text-gray-400">请先创建角色</p>');
-        } else {
-            chars.forEach(char => {
-                renderListItem($charList, char, 'character');
-                $('<label></label>').addClass('flex items-center space-x-3')
-                    .append($('<input>').attr({ type: 'checkbox', value: char.id }).addClass('form-checkbox h-5 w-5 bg-gray-800 text-purple-600 rounded'))
-                    .append($('<span></span>').text(char.name))
-                    .appendTo($groupCharSel);
-            });
-        }
+        if (chars.length === 0) $groupCharSel.html(`<p class="text-gray-400">${i18n[currentLang].groupNeedOneChar}</p>`);
+        else chars.forEach(char => {
+            renderListItem($charList, char, 'character');
+            $('<label></label>').addClass('flex items-center space-x-3').append($('<input>').attr({ type: 'checkbox', value: char.id }).addClass('form-checkbox h-5 w-5 bg-gray-800 text-purple-600 rounded')).append($('<span></span>').text(char.name)).appendTo($groupCharSel);
+        });
     }
-
     async function loadGroups() {
         const $groupList = $('#group-list').empty();
         const groups = await new Promise(r => getStore('groups', 'readonly').getAll().onsuccess = e => r(e.target.result));
         groups.forEach(group => renderListItem($groupList, group, 'group'));
     }
-
     async function loadWorldbooks() {
         const $listEl = $('#world-list').empty();
         const entries = await new Promise(r => getStore('worldbooks', 'readonly').getAll().onsuccess = e => r(e.target.result));
         entries.forEach(entry => {
-            $('<li></li>').addClass('sidebar-item p-2 rounded-lg cursor-pointer flex justify-between items-center')
-                .text(`${entry.keywords.split(',')[0].trim()}...`).attr('title', entry.keywords)
-                .append($('<span></span>').text('✏️').addClass('text-sm opacity-50 hover:opacity-100').on('click', e => { e.stopPropagation(); editWorldbook(entry.id); }))
-                .appendTo($listEl);
+            $('<li></li>').addClass('sidebar-item p-2 rounded-lg cursor-pointer flex justify-between items-center').text(`${entry.keywords.split(',')[0].trim()}...`).attr('title', entry.keywords).append($('<span></span>').text('✏️').addClass('text-sm opacity-50 hover:opacity-100').on('click', e => { e.stopPropagation(); editWorldbook(entry.id); })).appendTo($listEl);
         });
     }
 
     // --- CRUD OPERATIONS ---
-    function setupDeleteConfirmation(btnId, originalText, deleteFn) {
+    function setupDeleteConfirmation(btnId, originalTextKey, deleteFn) {
         const $btn = $(`#${btnId}`);
-        if ($btn.attr('data-confirming')) {
-            deleteFn();
-        } else {
-            $btn.attr('data-confirming', 'true').text('确认删除？').removeClass('bg-red-600 hover:bg-red-700').addClass('bg-yellow-500 hover:bg-yellow-600');
-            setTimeout(() => {
-                if ($btn.attr('data-confirming')) {
-                    $btn.removeAttr('data-confirming').text(originalText).removeClass('bg-yellow-500 hover:bg-yellow-600').addClass('bg-red-600 hover:bg-red-700');
-                }
-            }, 3000);
+        const originalText = i18n[currentLang][originalTextKey];
+        if ($btn.attr('data-confirming')) deleteFn();
+        else {
+            $btn.attr('data-confirming', 'true').text(i18n[currentLang].deleteConfirm).removeClass('bg-red-600 hover:bg-red-700').addClass('bg-yellow-500 hover:bg-yellow-600');
+            setTimeout(() => { if ($btn.attr('data-confirming')) $btn.removeAttr('data-confirming').text(originalText).removeClass('bg-yellow-500 hover:bg-yellow-600').addClass('bg-red-600 hover:bg-red-700'); }, 3000);
         }
     }
     
     function saveCharacter(e) { e.preventDefault(); 
-        const id = $('#char-id').val();
-        const name = $('#char-name').val().trim().replace(/\s+/g, '_');
-        if (!name) return alert("角色名称不能为空。");
+        const id = $('#char-id').val(), name = $('#char-name').val().trim().replace(/\s+/g, '_');
+        if (!name) return showToast('charNameCannotBeEmpty');
         const data = { name, persona: $('#char-persona').val(), greeting: $('#char-greeting').val() };
         const req = id ? getStore('characters', 'readwrite').put({ ...data, id: parseInt(id) }) : getStore('characters', 'readwrite').add(data);
         req.onsuccess = () => { showEditor(null); loadAndRenderAll(); };
     }
     function editCharacter(id) {
-        const char = currentState.characterCache.get(id);
-        if(!char) return;
+        const char = currentState.characterCache.get(id); if(!char) return;
         clearForms();
-        $('#char-id').val(char.id); $('#char-name').val(char.name);
-        $('#char-persona').val(char.persona); $('#char-greeting').val(char.greeting);
-        $('#delete-char-btn').show(); showEditor('char');
+        $('#char-id').val(char.id); $('#char-name').val(char.name); $('#char-persona').val(char.persona);
+        $('#char-greeting').val(char.greeting); $('#delete-char-btn').show(); showEditor('char');
     }
     function deleteCharacter() {
-        setupDeleteConfirmation('delete-char-btn', '删除角色', async () => {
+        setupDeleteConfirmation('delete-char-btn', 'deleteChar', async () => {
             const id = parseInt($('#char-id').val()); if (!id) return;
             await new Promise(r => getStore('characters', 'readwrite').delete(id).onsuccess = r);
             const groupStore = getStore('groups', 'readwrite');
@@ -413,14 +424,14 @@
             }
             await deleteChatHistory(`char_${id}`);
             await loadAndRenderAll(); showEditor(null);
-            if (currentState.sessionId && currentState.sessionId.includes(`_${id}`)) showWelcomeScreen();
+            if (currentState.sessionId?.includes(`_${id}`)) showWelcomeScreen();
         });
     }
     
     function saveGroup(e) { e.preventDefault();
         const id = $('#group-id').val();
         const characterIds = $('#group-char-selection input:checked').map((_, el) => parseInt($(el).val())).get();
-        if (characterIds.length < 1) return alert('群聊至少需要1个角色。');
+        if (characterIds.length < 1) return showToast('groupNeedOneChar');
         const data = { name: $('#group-name').val(), characterIds };
         const req = id ? getStore('groups', 'readwrite').put({ ...data, id: parseInt(id) }) : getStore('groups', 'readwrite').add(data);
         req.onsuccess = () => { showEditor(null); loadAndRenderAll(); };
@@ -429,14 +440,12 @@
         getStore('groups', 'readonly').get(id).onsuccess = e => {
             const group = e.target.result; clearForms();
             $('#group-id').val(group.id); $('#group-name').val(group.name);
-            $('#group-char-selection input').each(function() {
-                $(this).prop('checked', group.characterIds.includes(parseInt($(this).val())));
-            });
+            $('#group-char-selection input').each(function() { $(this).prop('checked', group.characterIds.includes(parseInt($(this).val()))); });
             $('#delete-group-btn').show(); showEditor('group');
         };
     }
     function deleteGroup() {
-        setupDeleteConfirmation('delete-group-btn', '删除群组', async () => {
+        setupDeleteConfirmation('delete-group-btn', 'deleteGroup', async () => {
             const id = parseInt($('#group-id').val()); if (!id) return;
             await new Promise(r => getStore('groups', 'readwrite').delete(id).onsuccess = r);
             await deleteChatHistory(`group_${id}`);
@@ -460,27 +469,19 @@
         };
     }
     function deleteWorldbook() {
-        setupDeleteConfirmation('delete-world-btn', '删除条目', () => {
+        setupDeleteConfirmation('delete-world-btn', 'deleteEntry', () => {
              const id = parseInt($('#world-id').val()); if(!id) return;
-             getStore('worldbooks', 'readwrite').delete(id).onsuccess = () => {
-                loadAndRenderAll(); showEditor(null);
-            };
+             getStore('worldbooks', 'readwrite').delete(id).onsuccess = () => { loadAndRenderAll(); showEditor(null); };
         });
     }
 
     // --- SESSION & CHAT LOGIC ---
-    function showWelcomeScreen() {
-        $('#chat-area').hide(); $('#chat-welcome').show();
-        $('.sidebar-item').removeClass('active');
-        currentState.sessionId = null; currentState.sessionType = null;
-    }
-
+    function showWelcomeScreen() { $('#chat-area').hide(); $('#chat-welcome').show(); $('.sidebar-item').removeClass('active'); currentState.sessionId = null; currentState.sessionType = null; }
     async function selectSession(id, type) {
         currentState.sessionId = `${type}_${id}`; currentState.sessionType = type;
         $('.sidebar-item').removeClass('active');
         $(`.sidebar-item[data-id='${id}'][data-type='${type}']`).addClass('active');
         $('#chat-welcome').hide(); $('#chat-area').show();
-        
         let sessionName = '', participants = '', initialMessages = [];
         if (type === 'character') {
             const char = currentState.characterCache.get(id);
@@ -493,15 +494,12 @@
             participants = `参与者: ${charNames.join(', ')}`;
             initialMessages.push({ role: 'system', content: `群聊 "${group.name}" 开始了。` });
         }
-        
         $('#chat-session-name').text(sessionName); $('#chat-participants').text(participants);
         loadChatHistory(currentState.sessionId, initialMessages);
     }
-
     async function loadChatHistory(sessionId, initialMessages) {
-        const $historyDiv = $('#chat-history').empty();
         const messages = await new Promise(r => getStore('chat_history', 'readonly').index('sessionId').getAll(sessionId).onsuccess = e => r(e.target.result));
-        
+        $('#chat-history').empty();
         if (messages.length === 0 && initialMessages.length > 0) {
             for (const msg of initialMessages) {
                 addMessageToChat(msg.role, msg.content, msg.characterName);
@@ -509,50 +507,38 @@
             }
         } else messages.forEach(msg => addMessageToChat(msg.role, msg.content, msg.characterName));
     }
-
     function addMessageToChat(role, content, characterName = null) {
         const $historyContainer = $('#chat-history-container');
         const $bubble = $('<div></div>').addClass('p-3 rounded-lg chat-bubble').text(content);
         const $msgWrapper = $('<div></div>').addClass('flex flex-col').append($bubble);
-        
         if (role === 'user') $msgWrapper.addClass('items-end').find('.chat-bubble').addClass('chat-bubble-user');
         else if (role === 'system') $msgWrapper.addClass('items-center').find('.chat-bubble').addClass('text-sm text-gray-400 italic text-center');
-        else {
-            $msgWrapper.addClass('items-start').find('.chat-bubble').addClass('chat-bubble-char');
-            $msgWrapper.prepend($('<div></div>').addClass('speaker-name').text(characterName || '旁白'));
-        }
+        else $msgWrapper.addClass('items-start').find('.chat-bubble').addClass('chat-bubble-char').end().prepend($('<div></div>').addClass('speaker-name').text(characterName || '旁白'));
         $('#chat-history').append($msgWrapper);
         $historyContainer.scrollTop($historyContainer[0].scrollHeight);
     }
-
     function saveMessage(sessionId, role, content, characterId = null, characterName = null) {
         getStore('chat_history', 'readwrite').add({ sessionId, role, content, characterId, characterName, timestamp: new Date() });
     }
-
     function deleteChatHistory(sessionId) {
         const index = getStore('chat_history', 'readwrite').index('sessionId');
         const request = index.openCursor(IDBKeyRange.only(sessionId));
-        request.onsuccess = e => {
-            const cursor = e.target.result; if (cursor) { cursor.delete(); cursor.continue(); }
-        }; return request;
+        request.onsuccess = e => { const cursor = e.target.result; if (cursor) { cursor.delete(); cursor.continue(); } };
+        return request;
     }
-
     async function handleSendMessage() {
         const text = $('#user-input').val().trim();
         if (!text || !currentState.sessionId) return;
         addMessageToChat('user', text); saveMessage(currentState.sessionId, 'user', text);
         $('#user-input').val(''); addMessageToChat('char', '思考中...', 'AI');
-        
         try {
             const participants = await getSessionParticipants();
             let mentionedChar = null;
             const match = text.match(/@([\p{L}\p{N}_]+)/u);
             if (match) mentionedChar = participants.find(p => p.name.toLowerCase() === match[1].toLowerCase());
-
             const prompt = await constructPrompt(mentionedChar ? mentionedChar.name : null);
             const responseText = await getAIResponse(prompt);
             $('#chat-history').children().last().remove();
-            
             let characterName = null, content = responseText;
             const parts = responseText.split(':');
             const speakingChar = participants.find(p => p.name === parts[0].trim());
@@ -568,7 +554,6 @@
             addMessageToChat('char', `抱歉，我出错了: ${error.message}`, '系统');
         }
     }
-
     async function getSessionParticipants() {
         if (!currentState.sessionId) return [];
         const [type, idStr] = currentState.sessionId.split('_');
@@ -579,16 +564,13 @@
             return group ? group.characterIds.map(cid => currentState.characterCache.get(cid)).filter(Boolean) : [];
         } return [];
     }
-
     async function constructPrompt(targetCharacterName = null) {
         const participants = await getSessionParticipants();
         const history = (await new Promise(r => getStore('chat_history', 'readonly').index('sessionId').getAll(currentState.sessionId).onsuccess = e => r(e.target.result))).slice(-15);
         const convoText = history.map(h => h.content).join('\n');
         const worldbooks = await new Promise(r => getStore('worldbooks', 'readonly').getAll().onsuccess = e => r(e.target.result));
         const triggeredWorlds = worldbooks.filter(w => w.keywords.split(',').some(k => convoText.toLowerCase().includes(k.trim().toLowerCase())));
-
         let prompt = "[System Note: This is a roleplay conversation.]\n\n== CHARACTERS IN THIS SCENE ==\n";
-        
         participants.forEach(p => { prompt += `Name: ${p.name}\nPersona: ${p.persona}\n\n`; });
         if (triggeredWorlds.length > 0) {
             prompt += "== RELEVANT WORLDBOOK ENTRIES ==\n";
@@ -596,7 +578,6 @@
         }
         prompt += "== RECENT CONVERSATION HISTORY ==\n";
         history.forEach(msg => { prompt += `${msg.role === 'user' ? 'User' : msg.characterName || 'Narration'}: ${msg.content}\n`; });
-        
         let roleplayInstruction = '';
         const isGroup = currentState.sessionType === 'group' && participants.length > 1;
         if (isGroup) {
@@ -608,33 +589,38 @@
         } else {
             roleplayInstruction = `Continue as ${participants[0].name}. Do not include your name as a prefix.`;
         }
-
         const langInstruction = currentLang === 'zh-CN' ? '你必须只使用简体中文进行回复。' : 'You MUST respond only in English.';
         prompt += `\n[System Note: ${roleplayInstruction} Final instruction: ${langInstruction}]`;
-        
         return prompt;
     }
-    
     async function getAIResponse(prompt) {
         console.log("--- PROMPT SENT TO AI ---\n", prompt);
-        const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-        const apiKey = "";
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-        const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        if (!response.ok) {
-            const errorBody = await response.json();
-            throw new Error(`API Error: ${errorBody.error?.message || 'Unknown'}`);
+        const { apiKey, apiUrl } = currentState.worldConfig;
+        let response;
+        if (apiUrl.includes('openai.com')) {
+            response = await fetch(apiUrl, {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                body: JSON.stringify({ model: 'gpt-3.5-turbo', messages: [{ role: 'user', content: prompt }] })
+            });
+        } else {
+            const fullApiUrl = `${apiUrl}?key=${apiKey}`;
+            response = await fetch(fullApiUrl, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }] })
+            });
         }
+        if (!response.ok) { const errorBody = await response.json(); throw new Error(`API Error: ${errorBody.error?.message || JSON.stringify(errorBody)}`); }
         const result = await response.json();
-        if (result.candidates?.[0]?.content?.parts?.[0]?.text) return result.candidates[0].content.parts[0].text;
+        if (apiUrl.includes('openai.com')) {
+            if (result.choices?.[0]?.message?.content) return result.choices[0].message.content;
+        } else {
+            if (result.candidates?.[0]?.content?.parts?.[0]?.text) return result.candidates[0].content.parts[0].text;
+        }
         throw new Error(result.promptFeedback?.blockReason ? `Content blocked: ${result.promptFeedback.blockReason}` : "AI failed to generate a valid response.");
     }
     
     // --- @MENTION SUGGESTIONS ---
-    const $userInput = $('#user-input');
-    const $suggestionsBox = $('#mention-suggestions');
-    let mentionStartIndex = -1;
-
+    const $userInput = $('#user-input'), $suggestionsBox = $('#mention-suggestions'); let mentionStartIndex = -1;
     async function handleMentionInput() {
         const textUpToCursor = $userInput.val().substring(0, $userInput[0].selectionStart);
         const mentionMatch = textUpToCursor.match(/@([\p{L}\p{N}_]*)$/u);
@@ -648,27 +634,18 @@
             }
         } hideMentionSuggestions();
     }
-
     function renderMentionSuggestions(suggestions) {
         if (suggestions.length === 0) return hideMentionSuggestions();
         $suggestionsBox.empty();
         suggestions.forEach(char => {
             $('<div></div>').text(char.name).addClass('p-2 px-3 cursor-pointer hover:bg-gray-600 rounded-md')
-                .on('mousedown', e => { e.preventDefault(); selectMention(char.name); })
-                .appendTo($suggestionsBox);
+                .on('mousedown', e => { e.preventDefault(); selectMention(char.name); }).appendTo($suggestionsBox);
         });
         $suggestionsBox.show();
     }
-
-    function hideMentionSuggestions() {
-        if ($suggestionsBox.is(':visible')) $suggestionsBox.hide();
-        mentionStartIndex = -1;
-    }
-
-
+    function hideMentionSuggestions() { if ($suggestionsBox.is(':visible')) $suggestionsBox.hide(); mentionStartIndex = -1; }
     function selectMention(name) {
-        const currentText = $userInput.val();
-        const textBefore = currentText.substring(0, mentionStartIndex);
+        const currentText = $userInput.val(); const textBefore = currentText.substring(0, mentionStartIndex);
         const textAfter = currentText.substring($userInput[0].selectionStart);
         $userInput.val(`${textBefore}@${name} ${textAfter}`);
         hideMentionSuggestions(); $userInput.focus();
@@ -679,20 +656,40 @@
     // --- APP INITIALIZATION ---
     function initializeAppLogic() {
         populateEditors();
+        $('#config-editor').on('submit', saveWorldConfig);
+        $('#char-editor').on('submit', saveCharacter);
+        $('#delete-char-btn').on('click', deleteCharacter);
+        $('#world-editor').on('submit', saveWorldbook);
+        $('#delete-world-btn').on('click', deleteWorldbook);
+        $('#group-editor').on('submit', saveGroup);
+        $('#delete-group-btn').on('click', deleteGroup);
+
         loadAndRenderAll();
         $('#new-char-btn').on('click', () => showEditor('char'));
         $('#new-group-btn').on('click', () => showEditor('group'));
         $('#new-world-btn').on('click', () => showEditor('world'));
+        $('#edit-config-btn').on('click', () => editWorldConfig());
         $('#send-btn').on('click', () => { handleSendMessage(); hideMentionSuggestions(); });
         $userInput.on('keydown', e => {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); hideMentionSuggestions(); }
             if (e.key === 'Escape') hideMentionSuggestions();
         });
-        $userInput.on('input click', handleMentionInput);
-        $userInput.on('blur', () => setTimeout(hideMentionSuggestions, 150));
+        $userInput.on('input click', handleMentionInput); $userInput.on('blur', () => setTimeout(hideMentionSuggestions, 150));
     }
 
     // --- START THE APP ---
+    $('#create-world-btn').on('click', () => {
+        const newWorldName = $('#new-world-name').val().trim();
+        enterWorld(newWorldName);
+    });
+    $('#enter-world-btn').on('click', () => {
+        const selectedWorld = $('#world-select-dropdown').val();
+        if (selectedWorld) enterWorld(selectedWorld);
+        else showToast('alertSelectWorld');
+    });
+    $('#new-world-name').on('keydown', e => { if (e.key === 'Enter') $('#create-world-btn').trigger('click'); });
+    $('#lang-switcher').on('click', () => { const newLang = currentLang === 'zh-CN' ? 'en-US' : 'zh-CN'; setLanguage(newLang, true); });
+
     setLanguage(getLanguage());
     showWorldSelectionDialog();
 
