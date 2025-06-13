@@ -26,22 +26,23 @@
 
     <!-- World Selection Dialog -->
     <div id="world-selector-dialog" class="fixed inset-0 bg-gray-900 bg-opacity-80 flex items-center justify-center z-50">
-        <div class="bg-gray-800 rounded-lg shadow-xl p-8 w-full max-w-md">
-            <h2 class="text-3xl font-bold text-center mb-6">3000World</h2>
+        <div class="bg-gray-800 rounded-lg shadow-xl p-8 w-full max-w-md relative">
+            <div class="absolute top-4 right-4">
+                <button id="lang-switcher" class="text-sm text-gray-400 hover:text-white" data-i18n="langSwitcherLabel">语言: 简体中文</button>
+            </div>
+            <h2 class="text-3xl font-bold text-center mb-6" data-i18n="appTitle">3000World</h2>
             <div id="existing-worlds-container">
-                <h3 class="text-lg font-semibold mb-3">选择一个世界</h3>
+                <h3 class="text-lg font-semibold mb-3" data-i18n="selectWorldTitle">选择一个世界</h3>
                 <div class="flex space-x-3 mb-6">
-                    <select id="world-select-dropdown" class="flex-grow bg-gray-700 p-3 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <!-- Options will be populated here -->
-                    </select>
-                    <button id="enter-world-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded-lg">进入</button>
+                    <select id="world-select-dropdown" class="flex-grow bg-gray-700 p-3 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+                    <button id="enter-world-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded-lg" data-i18n="enterWorldBtn">进入</button>
                 </div>
             </div>
             <div>
-                <h3 class="text-lg font-semibold mb-3">或者, 创建一个新世界</h3>
+                <h3 class="text-lg font-semibold mb-3" data-i18n="createWorldTitle">或者, 创建一个新世界</h3>
                 <div class="flex space-x-3">
-                    <input type="text" id="new-world-name" placeholder="输入新世界的名称..." class="flex-grow bg-gray-700 p-3 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500">
-                    <button id="create-world-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-5 rounded-lg">创建</button>
+                    <input type="text" id="new-world-name" data-i18n-placeholder="newWorldPlaceholder" placeholder="输入新世界的名称..." class="flex-grow bg-gray-700 p-3 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    <button id="create-world-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-5 rounded-lg" data-i18n="createWorldBtn">创建</button>
                 </div>
             </div>
         </div>
@@ -52,18 +53,18 @@
         <!-- Left Sidebar -->
         <aside class="w-1/4 bg-gray-800 p-4 flex flex-col custom-scrollbar overflow-y-auto">
             <div class="mb-6">
-                <h2 class="text-xl font-bold mb-3">群聊</h2>
-                <button id="new-group-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg mb-3">创建新群组</button>
+                <h2 class="text-xl font-bold mb-3" data-i18n="groupChatTitle">群聊</h2>
+                <button id="new-group-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg mb-3" data-i18n="newGroupBtn">创建新群组</button>
                 <ul id="group-list" class="space-y-2"></ul>
             </div>
             <div class="mb-6">
-                <h2 class="text-xl font-bold mb-3">角色卡片</h2>
-                <button id="new-char-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg mb-3">创建新角色</button>
+                <h2 class="text-xl font-bold mb-3" data-i18n="characterCardTitle">角色卡片</h2>
+                <button id="new-char-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg mb-3" data-i18n="newCharBtn">创建新角色</button>
                 <ul id="char-list" class="space-y-2"></ul>
             </div>
             <div>
-                <h2 class="text-xl font-bold mb-3">世界设定集</h2>
-                <button id="new-world-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg mb-3">创建新条目</button>
+                <h2 class="text-xl font-bold mb-3" data-i18n="worldBookTitle">世界设定集</h2>
+                <button id="new-world-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg mb-3" data-i18n="newWorldEntryBtn">创建新条目</button>
                 <ul id="world-list" class="space-y-2"></ul>
             </div>
         </aside>
@@ -71,8 +72,8 @@
         <!-- Main Content -->
         <main class="w-1/2 bg-gray-900 flex flex-col p-4 h-screen">
             <div id="chat-welcome" class="flex flex-col items-center justify-center h-full text-center">
-                <h1 class="text-3xl font-bold text-gray-400">欢迎使用</h1>
-                <p class="text-gray-500 mt-2">从左侧选择一个群组或角色开始对话。</p>
+                <h1 class="text-3xl font-bold text-gray-400" data-i18n="welcomeTitle">欢迎使用</h1>
+                <p class="text-gray-500 mt-2" data-i18n="welcomeMessage">从左侧选择一个群组或角色开始对话。</p>
             </div>
             <div id="chat-area" class="hidden flex-1 flex flex-col min-h-0">
                  <div id="chat-header" class="border-b-2 border-gray-700 pb-2 mb-4 flex-shrink-0">
@@ -85,8 +86,8 @@
                 <div class="mt-4 relative flex-shrink-0">
                     <div id="mention-suggestions" class="hidden absolute bottom-full mb-2 w-full bg-gray-700 border border-gray-600 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto custom-scrollbar"></div>
                     <div class="flex items-center">
-                        <textarea id="user-input" class="w-full p-3 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="输入你的消息, 可使用 @ 来提及角色..." rows="2"></textarea>
-                        <button id="send-btn" class="ml-3 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded-lg">发送</button>
+                        <textarea id="user-input" class="w-full p-3 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" data-i18n-placeholder="userInputPlaceholder" placeholder="输入你的消息, 可使用 @ 来提及角色..." rows="2"></textarea>
+                        <button id="send-btn" class="ml-3 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded-lg" data-i18n="sendBtn">发送</button>
                     </div>
                 </div>
             </div>
@@ -96,8 +97,8 @@
         <aside class="w-1/4 bg-gray-800 p-6 custom-scrollbar overflow-y-auto">
             <div id="editor-panel">
                 <div id="editor-welcome" class="text-gray-500">
-                    <h3 class="text-xl font-bold mb-2">编辑器</h3>
-                    <p>点击 "创建" 或选择现有条目进行编辑。</p>
+                    <h3 class="text-xl font-bold mb-2" data-i18n="editorTitle">编辑器</h3>
+                    <p data-i18n="editorWelcomeMessage">点击 "创建" 或选择现有条目进行编辑。</p>
                 </div>
                 <form id="group-editor" class="hidden space-y-4"></form>
                 <form id="char-editor" class="hidden space-y-4"></form>
@@ -109,6 +110,54 @@
     <script>
     $(async function() { // Document Ready
     
+    // --- I18N SETUP ---
+    const i18n = {
+        'zh-CN': {
+            langSwitcherLabel: '语言: 简体中文', appTitle: '3000World',
+            selectWorldTitle: '选择一个世界', enterWorldBtn: '进入',
+            createWorldTitle: '或者, 创建一个新世界', newWorldPlaceholder: '输入新世界的名称...', createWorldBtn: '创建',
+            groupChatTitle: '群聊', newGroupBtn: '创建新群组',
+            characterCardTitle: '角色卡片', newCharBtn: '创建新角色',
+            worldBookTitle: '世界设定集', newWorldEntryBtn: '创建新条目',
+            welcomeTitle: '欢迎使用', welcomeMessage: '从左侧选择一个群组或角色开始对话。',
+            userInputPlaceholder: '输入你的消息, 可使用 @ 来提及角色...', sendBtn: '发送',
+            editorTitle: '编辑器', editorWelcomeMessage: '点击 "创建" 或选择现有条目进行编辑。'
+        },
+        'en-US': {
+            langSwitcherLabel: 'Language: English', appTitle: '3000World',
+            selectWorldTitle: 'Select a World', enterWorldBtn: 'Enter',
+            createWorldTitle: 'Or, Create a New World', newWorldPlaceholder: 'Enter new world name...', createWorldBtn: 'Create',
+            groupChatTitle: 'Group Chats', newGroupBtn: 'New Group',
+            characterCardTitle: 'Characters', newCharBtn: 'New Character',
+            worldBookTitle: 'Worldbook', newWorldEntryBtn: 'New Entry',
+            welcomeTitle: 'Welcome', welcomeMessage: 'Select a group or character from the left to start chatting.',
+            userInputPlaceholder: 'Type your message, use @ to mention characters...', sendBtn: 'Send',
+            editorTitle: 'Editor', editorWelcomeMessage: 'Click "Create" or select an existing item to edit.'
+        }
+    };
+
+    let currentLang = 'zh-CN';
+
+    function setLanguage(lang) {
+        if (!i18n[lang]) lang = 'zh-CN'; // Fallback
+        currentLang = lang;
+        localStorage.setItem('3000world-lang', lang);
+        
+        const strings = i18n[lang];
+        $('[data-i18n]').each(function() {
+            const key = $(this).data('i18n');
+            if (strings[key]) $(this).text(strings[key]);
+        });
+        $('[data-i18n-placeholder]').each(function() {
+            const key = $(this).data('i18n-placeholder');
+            if (strings[key]) $(this).attr('placeholder', strings[key]);
+        });
+    }
+
+    function getLanguage() {
+        return localStorage.getItem('3000world-lang') || 'zh-CN';
+    }
+
     // --- GLOBAL APP STATE ---
     const DB_PREFIX = '3000World_';
     const DB_VERSION = 2;
@@ -180,6 +229,11 @@
             const newWorldName = $('#new-world-name').val().trim();
             enterWorld(newWorldName);
         }
+    });
+    
+    $('#lang-switcher').on('click', () => {
+        const newLang = currentLang === 'zh-CN' ? 'en-US' : 'zh-CN';
+        setLanguage(newLang);
     });
 
     // --- DATABASE (IndexedDB) SETUP ---
@@ -533,7 +587,8 @@
         const worldbooks = await new Promise(r => getStore('worldbooks', 'readonly').getAll().onsuccess = e => r(e.target.result));
         const triggeredWorlds = worldbooks.filter(w => w.keywords.split(',').some(k => convoText.toLowerCase().includes(k.trim().toLowerCase())));
 
-        let prompt = "[System Note: This is a roleplay conversation...]\n\n== CHARACTERS IN THIS SCENE ==\n";
+        let prompt = "[System Note: This is a roleplay conversation.]\n\n== CHARACTERS IN THIS SCENE ==\n";
+        
         participants.forEach(p => { prompt += `Name: ${p.name}\nPersona: ${p.persona}\n\n`; });
         if (triggeredWorlds.length > 0) {
             prompt += "== RELEVANT WORLDBOOK ENTRIES ==\n";
@@ -542,22 +597,28 @@
         prompt += "== RECENT CONVERSATION HISTORY ==\n";
         history.forEach(msg => { prompt += `${msg.role === 'user' ? 'User' : msg.characterName || 'Narration'}: ${msg.content}\n`; });
         
+        let roleplayInstruction = '';
         const isGroup = currentState.sessionType === 'group' && participants.length > 1;
         if (isGroup) {
             if (targetCharacterName) {
-                prompt += `\n[System Note: The User speaks directly to ${targetCharacterName}. ${targetCharacterName} MUST respond. Format: '${targetCharacterName}: Their dialogue'.]`;
+                roleplayInstruction = `The User speaks directly to ${targetCharacterName}. ${targetCharacterName} MUST respond. Format: '${targetCharacterName}: Their dialogue'.`;
             } else {
-                prompt += `\n[System Note: You are the roleplay master, responsible for driving the story forward. Based on the characters and world setting, you MUST decide who speaks next OR provide narration. Narration is crucial for describing the environment, introducing new events, or revealing challenges. For example, 'A cold wind blows through the trees, carrying the scent of decay.' Use narration to make the story dynamic and interesting. For character dialogue, use the format 'CharacterName: Their dialogue'. For narration, omit the prefix.]`;
+                roleplayInstruction = `You are the roleplay master, responsible for driving the story forward. Based on the characters and world setting, you MUST decide who speaks next OR provide narration. Narration is crucial for describing the environment, introducing new events, or revealing challenges. For example, 'A cold wind blows through the trees, carrying the scent of decay.' Use narration to make the story dynamic and interesting. For character dialogue, use the format 'CharacterName: Their dialogue'. For narration, omit the prefix.`;
             }
         } else {
-            prompt += `\n[System Note: Continue as ${participants[0].name}. Do not include your name as a prefix.]\n`;
-        } return prompt;
+            roleplayInstruction = `Continue as ${participants[0].name}. Do not include your name as a prefix.`;
+        }
+
+        const langInstruction = currentLang === 'zh-CN' ? '你必须只使用简体中文进行回复。' : 'You MUST respond only in English.';
+        prompt += `\n[System Note: ${roleplayInstruction} Final instruction: ${langInstruction}]`;
+        
+        return prompt;
     }
     
     async function getAIResponse(prompt) {
         console.log("--- PROMPT SENT TO AI ---\n", prompt);
         const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-        const apiKey = ""; // API key is handled by the environment
+        const apiKey = "";
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
         const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (!response.ok) {
@@ -604,6 +665,7 @@
         mentionStartIndex = -1;
     }
 
+
     function selectMention(name) {
         const currentText = $userInput.val();
         const textBefore = currentText.substring(0, mentionStartIndex);
@@ -631,9 +693,10 @@
     }
 
     // --- START THE APP ---
+    setLanguage(getLanguage());
     showWorldSelectionDialog();
 
     });
     </script>
 </body>
-</ht
+</html>
