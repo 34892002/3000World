@@ -1003,8 +1003,13 @@
                 }
                 const result = await response.json();
 
-                if (result.choices && result.choices[0]?.message?.content) {
-                    let content = result.choices[0].message.content;
+                if (result.choices && result.choices[0]?.message) {
+                    let content;
+                    if (result.choices[0].message?.content) {
+                        content = result.choices[0].message.content;
+                    } else if (result.choices[0].message?.reasoning_content) {
+                        content = result.choices[0].message?.reasoning_content;
+                    }
                     return content.replace(/<think>[\s\S]*?<\/think>/g, '');
                 } else {
                     if (result.promptFeedback?.blockReason) {
