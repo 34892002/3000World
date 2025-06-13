@@ -975,9 +975,9 @@
 
                 // 如果有主角，添加额外说明
                 if (hasPlayerCharacter) {
-                    prompt += `\n[System Note: 严格规则：AI每次回复只能控制一个非主角角色，或者只提供旁白描述。绝对禁止在同一回复中控制多个角色。玩家角色是 ${currentState.playerCharacter.name}，AI绝不能代替此角色说话或行动。剧情只能根据 ${currentState.playerCharacter.name} 的对话来推进。如果没有说明角色应该互相不认识，应该随着角色之间的对话来缓慢推进剧情。 ${roleplayInstruction} Final instruction: ${langInstruction}]`;
+                    prompt += `\n[System Note: 严格规则：玩家角色是 ${currentState.playerCharacter.name}，AI绝不能代替此角色说话或行动。剧情只能根据 ${currentState.playerCharacter.name} 的对话来推进。如果没有说明角色应该互相不认识，应该随着角色之间的对话来缓慢推进剧情。 ${roleplayInstruction} Final instruction: ${langInstruction}]`;
                 } else {
-                    prompt += `\n[System Note: 严格规则：AI每次回复只能控制一个角色，或者只提供旁白描述。绝对禁止在同一回复中控制多个角色。 ${roleplayInstruction} Final instruction: ${langInstruction}]`;
+                    prompt += `\n[System Note: ${roleplayInstruction} Final instruction: ${langInstruction}]`;
                 }
 
                 return prompt;
