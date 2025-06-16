@@ -1,5 +1,21 @@
 import { ref, readonly } from 'vue'
 
+import { useNotification } from '@/composables/useNotification'
+
+// 延迟初始化通知实例，避免在Pinia未激活时调用
+let notification = null
+
+/**
+ * 获取通知实例（延迟初始化）
+ * @returns {Object} 通知实例
+ */
+function getNotification() {
+  if (!notification) {
+    notification = useNotification()
+  }
+  return notification
+}
+
 // 全局loading状态
 const isLoading = ref(false)
 const loadingCount = ref(0)
@@ -60,12 +76,6 @@ function handleError(error, showMessage = true) {
     const status = error.response.status
     message = t(ERROR_MESSAGES[status] || 'api.error.unknown')
 
-    // 非200弹出全局错误
-    if (status !== 200 && showMessage) {
-      // 这里可以集成vuetify的snackbar或其他通知组件
-      console.error('API Error:', message, error)
-    }
-
     // 401错误处理 - 清除token并跳转登录
     if (status === 401) {
       localStorage.removeItem('auth_token')
@@ -84,6 +94,7 @@ function handleError(error, showMessage = true) {
   if (showMessage) {
     // 这里可以集成vuetify的snackbar或其他通知组件
     console.error('API Error:', message, error)
+    getNotification().handleApiError(message)
   }
 
   return Promise.reject({ message, originalError: error })
