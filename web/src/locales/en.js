@@ -56,6 +56,25 @@ export default {
             days: 'days ago',
         }
     },
+    worldSelector: {
+        language: 'Language',
+        appTitle: '3000World',
+        subtitle: 'Explore infinite possibilities of AI conversations',
+        selectWorld: 'Select Existing World',
+        chooseWorld: 'Please choose a world',
+        enterWorld: 'Enter World',
+        createWorld: 'Create New World',
+        newWorldPlaceholder: 'Enter new world name',
+        create: 'Create',
+        importWorld: 'Import World',
+        selectFile: 'Select File',
+        importing: 'Importing...',
+        importSuccess: 'Import successful!',
+        importError: 'Import failed, please check file format',
+        version: 'Version',
+        docs: 'Docs',
+        community: 'Community'
+    },
     messages: {
         "welcome": "Welcome to this application！"
     },

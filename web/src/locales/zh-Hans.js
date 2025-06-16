@@ -56,6 +56,25 @@ export default {
             days: '天前',
         }
     },
+    worldSelector: {
+        language: '语言',
+        appTitle: '3000世界',
+        subtitle: '探索无限可能的AI对话世界',
+        selectWorld: '选择现有世界',
+        chooseWorld: '请选择一个世界',
+        enterWorld: '进入世界',
+        createWorld: '创建新世界',
+        newWorldPlaceholder: '输入新世界名称',
+        create: '创建',
+        importWorld: '导入世界',
+        selectFile: '选择文件',
+        importing: '正在导入...',
+        importSuccess: '导入成功！',
+        importError: '导入失败，请检查文件格式',
+        version: '版本',
+        docs: '文档',
+        community: '社区'
+    },
     messages: {
         "welcome": "欢迎使用本应用程序！"
     },
