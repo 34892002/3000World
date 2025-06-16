@@ -1,4 +1,61 @@
 export default {
+    chat: {
+        user: {
+            avatar: 'User Avatar',
+            online: 'Online',
+        },
+        settings: {
+            title: 'Settings',
+            language: 'Language',
+            darkTheme: 'Dark Theme',
+            notifications: 'Notifications',
+            close: 'Close'
+        },
+        tabs: {
+            private: 'Private',
+            group: 'Group',
+            characters: 'Characters',
+            worldbook: 'Worldbook',
+            settings: 'Settings',
+        },
+        search: {
+            private: 'Search private chats',
+            group: 'Search group chats',
+            characters: 'Search characters',
+            worldbook: 'Search worldbook entries',
+            settings: 'Search settings',
+            placeholder: 'Search...',
+        },
+        group: {
+            membersLabel: 'members'
+        },
+        characters: {
+            title: 'Characters'
+        },
+        worldbook: {
+            title: 'Worldbook'
+        },
+        worldSettings: {
+            title: 'World Settings',
+            config: 'World Configuration',
+            configDesc: 'Manage general settings for the current world.',
+            api: 'API Configuration',
+            apiDesc: 'Configure API keys and endpoints for integrations.'
+        },
+        empty: {
+            title: 'Select a chat to start messaging',
+            subtitle: 'Or create a new chat from the sidebar.'
+        },
+        input: {
+            placeholder: 'Type a message...'
+        },
+        time: {
+            minutes: 'minutes ago',
+            now: 'now',
+            hours: 'hours ago',
+            days: 'days ago',
+        }
+    },
     messages: {
         "welcome": "Welcome to this application！"
     },
