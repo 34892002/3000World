@@ -278,6 +278,15 @@
       </div>
     </div>
 
+    <!-- 群组编辑器组件 -->
+    <GroupEditor
+      :visible="showGroupEditor"
+      :group="editingGroup"
+      :characters="characters"
+      @close="closeGroupEditor"
+      @save="saveGroup"
+    />
+
     <!-- 设置对话框 -->
     <div v-if="showSettings" class="modal-overlay" @click="showSettings = false">
       <div class="modal-content" @click.stop>
@@ -322,6 +331,7 @@
 <script setup>
 import { ref, computed, onMounted, nextTick, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import GroupEditor from '@/components/GroupEditor.vue'
 
 // 国际化
 const { t, locale } = useI18n()
@@ -336,6 +346,18 @@ const newMessage = ref('')
 const showSettings = ref(false)
 const messagesContainer = ref(null)
 const isMobile = ref(false)
+
+// 群组编辑器相关
+const showGroupEditor = ref(false)
+const editingGroup = ref({
+  id: null,
+  name: '',
+  description: '',
+  avatar: '',
+  members: [],
+  isPrivate: false,
+  allowInvites: true
+})
 
 // 用户信息
 const userName = ref('用户名')
@@ -512,6 +534,27 @@ const filteredWorldbook = computed(() => {
 })
 
 /**
+ * 可选择的角色列表（排除已选择的）
+ */
+const availableCharacters = computed(() => {
+  return characters.value
+})
+
+/**
+ * 已选择的成员列表
+ */
+const selectedMembers = computed(() => {
+  return characters.value.filter(char => editingGroup.value.members.includes(char.id))
+})
+
+/**
+ * 是否可以保存群组
+ */
+const canSaveGroup = computed(() => {
+  return editingGroup.value.name.trim().length > 0
+})
+
+/**
  * 获取当前选中的聊天
  */
 const selectedChat = computed(() => {
@@ -577,11 +620,138 @@ const selectWorldbookEntry = (entryId) => {
 
 /**
  * 显示创建对话框
- * @param {string} type - 创建类型
+ * @param {string} type - 对话框类型
  */
 const showCreateDialog = (type) => {
-  // 实现创建对话框逻辑
-  console.log('创建:', type)
+  if (type === 'group') {
+    openGroupEditor()
+  } else {
+    // 其他类型的创建对话框逻辑
+    console.log('创建:', type)
+  }
+}
+
+/**
+ * 打开群组编辑器
+ * @param {Object} group - 要编辑的群组对象，如果为空则创建新群组
+ */
+const openGroupEditor = (group = null) => {
+  if (group) {
+    // 编辑现有群组
+    editingGroup.value = {
+      id: group.id,
+      name: group.name,
+      description: group.description || '',
+      avatar: group.avatar,
+      members: [...group.members] || [],
+      isPrivate: group.isPrivate || false,
+      allowInvites: group.allowInvites !== false
+    }
+  } else {
+    // 创建新群组
+    editingGroup.value = {
+      id: null,
+      name: '',
+      description: '',
+      avatar: '',
+      members: [],
+      isPrivate: false,
+      allowInvites: true
+    }
+  }
+  showGroupEditor.value = true
+}
+
+/**
+ * 关闭群组编辑器
+ */
+const closeGroupEditor = () => {
+  showGroupEditor.value = false
+  // 重置编辑状态
+  setTimeout(() => {
+    editingGroup.value = {
+      id: null,
+      name: '',
+      description: '',
+      avatar: '',
+      members: [],
+      isPrivate: false,
+      allowInvites: true
+    }
+  }, 300)
+}
+
+/**
+ * 保存群组
+ */
+const saveGroup = () => {
+  if (!editingGroup.value.name.trim()) {
+    return
+  }
+
+  const groupData = {
+    name: editingGroup.value.name.trim(),
+    description: editingGroup.value.description.trim(),
+    avatar: editingGroup.value.avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${editingGroup.value.name}`,
+    members: editingGroup.value.members,
+    memberCount: editingGroup.value.members.length,
+    isPrivate: editingGroup.value.isPrivate,
+    allowInvites: editingGroup.value.allowInvites,
+    lastMessage: '',
+    lastMessageTime: new Date(),
+    unreadCount: 0,
+    messages: []
+  }
+
+  if (editingGroup.value.id) {
+    // 更新现有群组
+    const index = groupChats.value.findIndex(g => g.id === editingGroup.value.id)
+    if (index !== -1) {
+      groupChats.value[index] = { ...groupChats.value[index], ...groupData }
+    }
+  } else {
+    // 创建新群组
+    const newGroup = {
+      id: Date.now(),
+      ...groupData
+    }
+    groupChats.value.push(newGroup)
+  }
+
+  closeGroupEditor()
+}
+
+/**
+ * 切换角色选择状态
+ * @param {Object} character - 角色对象
+ */
+const toggleCharacterSelection = (character) => {
+  const index = editingGroup.value.members.findIndex(id => id === character.id)
+  if (index !== -1) {
+    editingGroup.value.members.splice(index, 1)
+  } else {
+    editingGroup.value.members.push(character.id)
+  }
+}
+
+/**
+ * 检查角色是否已选择
+ * @param {number} characterId - 角色ID
+ * @returns {boolean} 是否已选择
+ */
+const isCharacterSelected = (characterId) => {
+  return editingGroup.value.members.includes(characterId)
+}
+
+/**
+ * 移除群组成员
+ * @param {number} characterId - 角色ID
+ */
+const removeMember = (characterId) => {
+  const index = editingGroup.value.members.findIndex(id => id === characterId)
+  if (index !== -1) {
+    editingGroup.value.members.splice(index, 1)
+  }
 }
 
 /**
@@ -792,6 +962,277 @@ $colors: (
   font-family: $font-family;
   overflow: hidden;
   gap: 0;
+}
+
+// 群组编辑器样式
+.editor-modal {
+  max-width: 800px;
+  width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  
+  .modal-body {
+    max-height: calc(90vh - 120px);
+    overflow-y: auto;
+  }
+}
+
+.group-form {
+  .form-section {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid map-get(map-get($colors, light), border);
+    
+    &:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+    }
+    
+    h4 {
+      color: map-get(map-get($colors, light), text-primary);
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      @include text-shadow-light;
+    }
+    
+    h5 {
+      color: map-get(map-get($colors, light), text-secondary);
+      font-size: 0.9rem;
+      font-weight: 500;
+      margin-bottom: 0.75rem;
+    }
+  }
+  
+  .form-group {
+    margin-bottom: 1.5rem;
+    
+    label {
+      display: block;
+      color: map-get(map-get($colors, light), text-secondary);
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+  }
+  
+  .form-input, .form-textarea {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid map-get(map-get($colors, light), border);
+    border-radius: $border-radius-sm;
+    background: rgba(255, 255, 255, 0.8);
+    color: map-get(map-get($colors, light), text-primary);
+    font-size: 0.9rem;
+    transition: all $transition-base;
+    
+    &:focus {
+      outline: none;
+      border-color: map-get($colors, primary);
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    &::placeholder {
+      color: map-get(map-get($colors, light), text-muted);
+    }
+  }
+  
+  .form-textarea {
+    resize: vertical;
+    min-height: 80px;
+  }
+  
+  .avatar-input-group {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    
+    .form-input {
+      flex: 1;
+    }
+    
+    .avatar-preview {
+      width: 60px;
+      height: 60px;
+      border-radius: $border-radius-sm;
+      overflow: hidden;
+      border: 2px solid map-get(map-get($colors, light), border);
+      
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+    }
+  }
+  
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    color: map-get(map-get($colors, light), text-secondary);
+    font-weight: 500;
+    
+    input[type="checkbox"] {
+      display: none;
+    }
+    
+    .checkbox {
+      width: 20px;
+      height: 20px;
+      border: 2px solid map-get(map-get($colors, light), border);
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.8);
+      position: relative;
+      transition: all $transition-base;
+      
+      &::after {
+        content: '✓';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-size: 12px;
+        opacity: 0;
+        transition: opacity $transition-base;
+      }
+    }
+    
+    input[type="checkbox"]:checked + .checkbox {
+      background: map-get($colors, primary);
+      border-color: map-get($colors, primary);
+      
+      &::after {
+        opacity: 1;
+      }
+    }
+  }
+}
+
+.members-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+  
+  .available-characters, .selected-members {
+    .character-list, .member-list {
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid map-get(map-get($colors, light), border);
+      border-radius: $border-radius-sm;
+      background: rgba(255, 255, 255, 0.5);
+    }
+  }
+  
+  .character-item, .member-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-bottom: 1px solid map-get(map-get($colors, light), border);
+    cursor: pointer;
+    transition: all $transition-base;
+    
+    &:last-child {
+      border-bottom: none;
+    }
+    
+    &:hover {
+      background: rgba(102, 126, 234, 0.1);
+    }
+    
+    &.selected {
+      background: rgba(102, 126, 234, 0.15);
+      
+      .selection-indicator {
+        color: map-get($colors, primary);
+        font-weight: bold;
+      }
+    }
+    
+    .character-avatar, .member-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid map-get(map-get($colors, light), border);
+    }
+    
+    .character-name, .member-name {
+      flex: 1;
+      color: map-get(map-get($colors, light), text-primary);
+      font-weight: 500;
+    }
+    
+    .selection-indicator {
+      color: map-get(map-get($colors, light), text-muted);
+      font-weight: bold;
+      font-size: 1.2rem;
+    }
+    
+    .remove-member-btn {
+      background: none;
+      border: none;
+      color: map-get($colors, danger);
+      cursor: pointer;
+      padding: 0.25rem;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all $transition-base;
+      
+      &:hover {
+        background: rgba(239, 68, 68, 0.1);
+      }
+    }
+  }
+}
+
+.btn-primary, .btn-secondary {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: $border-radius-sm;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all $transition-base;
+  font-size: 0.9rem;
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn-primary {
+  background: map-get($colors, primary);
+  color: white;
+  
+  &:hover:not(:disabled) {
+    background: darken(map-get($colors, primary), 10%);
+    transform: translateY(-1px);
+    box-shadow: $shadow-hover;
+  }
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.8);
+  color: map-get(map-get($colors, light), text-secondary);
+  border: 1px solid map-get(map-get($colors, light), border);
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.95);
+    transform: translateY(-1px);
+  }
 }
 
 // 侧边栏样式
@@ -1943,6 +2384,108 @@ input[type="checkbox"] {
   
   input[type="checkbox"]:checked + .switch {
     background: #667eea;
+  }
+  
+  // 群组编辑器暗色主题
+  .group-form {
+    .form-section {
+      border-bottom-color: rgba(71, 85, 105, 0.3);
+      
+      h4 {
+        color: #f1f5f9;
+        @include text-shadow-dark;
+      }
+      
+      h5 {
+        color: #e2e8f0;
+      }
+    }
+    
+    .form-group label {
+      color: #e2e8f0;
+    }
+    
+    .form-input, .form-textarea {
+      border-color: rgba(71, 85, 105, 0.5);
+      background: rgba(30, 41, 59, 0.8);
+      color: #f1f5f9;
+      
+      &:focus {
+        background: rgba(30, 41, 59, 0.95);
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+      }
+      
+      &::placeholder {
+        color: #94a3b8;
+      }
+    }
+    
+    .avatar-preview {
+      border-color: rgba(71, 85, 105, 0.5);
+      background: rgba(30, 41, 59, 0.5);
+    }
+    
+    .checkbox-label {
+      color: #e2e8f0;
+      
+      .checkbox {
+        border-color: rgba(71, 85, 105, 0.5);
+        background: rgba(30, 41, 59, 0.8);
+        
+        &:checked {
+          background: #667eea;
+          border-color: #667eea;
+        }
+      }
+    }
+  }
+  
+  .members-selector {
+    .available-characters, .selected-members {
+      .character-list, .member-list {
+        border-color: rgba(71, 85, 105, 0.3);
+        background: rgba(30, 41, 59, 0.5);
+      }
+    }
+    
+    .character-item, .member-item {
+      border-bottom-color: rgba(71, 85, 105, 0.2);
+      
+      &:hover {
+        background: rgba(71, 85, 105, 0.3);
+      }
+      
+      .character-avatar, .member-avatar {
+        border-color: rgba(71, 85, 105, 0.3);
+      }
+      
+      .character-name, .member-name {
+        color: #f1f5f9;
+      }
+      
+      .selection-indicator {
+        color: #94a3b8;
+      }
+      
+      .remove-btn {
+        color: #f87171;
+        
+        &:hover {
+          background: rgba(248, 113, 113, 0.2);
+        }
+      }
+    }
+  }
+  
+  .btn-secondary {
+    background: rgba(71, 85, 105, 0.8);
+    color: #f1f5f9;
+    border-color: rgba(71, 85, 105, 0.5);
+    
+    &:hover {
+      background: rgba(71, 85, 105, 1);
+    }
   }
 }
 </style>

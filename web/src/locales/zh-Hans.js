@@ -27,7 +27,22 @@ export default {
             placeholder: '搜索...',
         },
         group: {
-            membersLabel: '成员'
+            membersLabel: '成员',
+            createTitle: '创建群组',
+            editTitle: '编辑群组',
+            basicInfo: '基本信息',
+            nameLabel: '群组名称',
+            namePlaceholder: '请输入群组名称',
+            descriptionLabel: '群组描述',
+            descriptionPlaceholder: '请输入群组描述',
+            avatarLabel: '群组头像',
+            avatarPlaceholder: '请输入头像URL',
+            membersTitle: '成员管理',
+            availableCharacters: '可选角色',
+            selectedMembers: '已选成员',
+            settingsTitle: '群组设置',
+            privateGroup: '私密群组',
+            allowInvites: '允许邀请'
         },
         characters: {
             title: '角色'
@@ -54,26 +69,42 @@ export default {
             now: '刚刚',
             hours: '小时前',
             days: '天前',
+        },
+        common: {
+            save: '保存',
+            cancel: '取消',
+            create: '创建',
+            edit: '编辑',
+            delete: '删除',
+            confirm: '确认'
         }
     },
+    // 世界选择器
     worldSelector: {
-        language: '语言',
-        appTitle: '3000世界',
-        subtitle: '探索无限可能的AI对话世界',
-        selectWorld: '选择现有世界',
-        chooseWorld: '请选择一个世界',
-        enterWorld: '进入世界',
-        createWorld: '创建新世界',
-        newWorldPlaceholder: '输入新世界名称',
-        create: '创建',
-        importWorld: '导入世界',
-        selectFile: '选择文件',
-        importing: '正在导入...',
-        importSuccess: '导入成功！',
-        importError: '导入失败，请检查文件格式',
+        subtitle: '选择或创建一个世界开始你的冒险',
         version: '版本',
-        docs: '文档',
-        community: '社区'
+        documentation: '查看文档',
+        community: '加入社区',
+        selectWorld: '选择世界',
+        createWorld: '创建新世界',
+        importWorld: '导入世界',
+        worldName: '世界名称',
+        worldDescription: '世界描述',
+        create: '创建',
+        cancel: '取消',
+        import: '导入',
+        selectFile: '选择文件',
+        fileSelected: '已选择文件',
+        creating: '创建中...',
+        importing: '导入中...',
+        success: '成功',
+        error: '错误',
+        worldCreated: '世界创建成功！',
+        worldImported: '世界导入成功！',
+        createFailed: '创建失败',
+        importFailed: '导入失败',
+        invalidFile: '无效的文件格式',
+        enterWorld: '进入世界'
     },
     messages: {
         "welcome": "欢迎使用本应用程序！"
