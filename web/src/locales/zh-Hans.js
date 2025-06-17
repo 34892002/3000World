@@ -1,5 +1,8 @@
 export default {
     chat: {
+        messages: { // 页面通用部分
+            "welcome": "欢迎使用本应用程序！"
+        },
         user: {
             avatar: '用户头像',
             online: '在线',
@@ -45,7 +48,34 @@ export default {
             allowInvites: '允许邀请'
         },
         characters: {
-            title: '角色'
+            title: '角色',
+            createTitle: '创建角色',
+            editTitle: '编辑角色',
+            basicInfo: '基本信息',
+            nameLabel: '角色名称',
+            namePlaceholder: '请输入角色名称',
+            descriptionLabel: '角色描述',
+            descriptionPlaceholder: '请输入角色描述',
+            avatarLabel: '角色头像',
+            avatarPlaceholder: '请输入头像URL',
+            personalityTitle: '性格特征',
+            personalityLabel: '性格',
+            personalityPlaceholder: '描述角色的性格特点...',
+            backgroundLabel: '背景故事',
+            backgroundPlaceholder: '描述角色的背景故事...',
+            personaTitle: '角色设定',
+            personaLabel: '角色人设',
+            personaPlaceholder: '描述角色的性格、背景、说话方式等...',
+            greetingLabel: '开场白',
+            greetingPlaceholder: '角色的第一句话或问候语...',
+            settingsTitle: '角色设置',
+            isPublic: '公开角色',
+            isPublicHelp: '允许其他用户使用此角色',
+            allowEdit: '允许编辑',
+            allowEditHelp: '允许其他用户修改此角色',
+            deleteConfirm: '确定要删除这个角色吗？',
+            deleteSuccess: '角色删除成功',
+            saveSuccess: '角色保存成功'
         },
         worldbook: {
             title: '世界设定集'
@@ -105,9 +135,6 @@ export default {
         importFailed: '导入失败',
         invalidFile: '无效的文件格式',
         enterWorld: '进入世界'
-    },
-    messages: {
-        "welcome": "欢迎使用本应用程序！"
     },
     api: {
         error: {

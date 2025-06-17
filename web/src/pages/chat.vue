@@ -115,7 +115,7 @@
         <div v-if="activeTab === 'characters'" class="content-section">
           <div class="section-header">
             <h4>{{ t('chat.characters.title') }}</h4>
-            <button class="add-btn" @click="showCreateDialog('character')">
+            <button class="add-btn" @click="openCharacterEditor()">
               <span>➕</span>
             </button>
           </div>
@@ -131,6 +131,14 @@
               </div>
               <h5 class="character-name">{{ character.name }}</h5>
               <p class="character-desc">{{ character.description }}</p>
+              <div class="character-actions">
+                <button class="edit-btn" @click.stop="openCharacterEditor(character)">
+                  ✏️
+                </button>
+                <button class="delete-btn" @click.stop="deleteCharacter(character.id)">
+                  🗑️
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -287,6 +295,15 @@
       @save="saveGroup"
     />
 
+    <!-- 角色编辑器 -->
+    <CharacterEditor
+      :visible="showCharacterEditor"
+      :character="editingCharacter"
+      @close="closeCharacterEditor"
+      @save="saveCharacter"
+      @delete="deleteCharacter"
+    />
+
     <!-- 设置对话框 -->
     <div v-if="showSettings" class="modal-overlay" @click="showSettings = false">
       <div class="modal-content" @click.stop>
@@ -332,6 +349,7 @@
 import { ref, computed, onMounted, nextTick, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import GroupEditor from '@/components/GroupEditor.vue'
+import CharacterEditor from '@/components/CharacterEditor.vue'
 
 // 国际化
 const { t, locale } = useI18n()
@@ -357,6 +375,16 @@ const editingGroup = ref({
   members: [],
   isPrivate: false,
   allowInvites: true
+})
+
+// 角色编辑器相关
+const showCharacterEditor = ref(false)
+const editingCharacter = ref({
+  id: null,
+  name: '',
+  persona: '',
+  greeting: '',
+  isPlayer: false
 })
 
 // 用户信息
@@ -625,6 +653,8 @@ const selectWorldbookEntry = (entryId) => {
 const showCreateDialog = (type) => {
   if (type === 'group') {
     openGroupEditor()
+  } else if (type === 'character') {
+    openCharacterEditor()
   } else {
     // 其他类型的创建对话框逻辑
     console.log('创建:', type)
@@ -751,6 +781,113 @@ const removeMember = (characterId) => {
   const index = editingGroup.value.members.findIndex(id => id === characterId)
   if (index !== -1) {
     editingGroup.value.members.splice(index, 1)
+  }
+}
+
+/**
+ * 打开角色编辑器
+ * @param {Object} character - 要编辑的角色对象，如果为空则创建新角色
+ */
+const openCharacterEditor = (character = null) => {
+  if (character) {
+    // 编辑现有角色
+    editingCharacter.value = {
+      id: character.id,
+      name: character.name,
+      persona: character.persona || '',
+      greeting: character.greeting || '',
+      isPlayer: character.isPlayer || false
+    }
+  } else {
+    // 创建新角色
+    editingCharacter.value = {
+      id: null,
+      name: '',
+      persona: '',
+      greeting: '',
+      isPlayer: false
+    }
+  }
+  showCharacterEditor.value = true
+}
+
+/**
+ * 关闭角色编辑器
+ */
+const closeCharacterEditor = () => {
+  showCharacterEditor.value = false
+  // 重置编辑状态
+  setTimeout(() => {
+    editingCharacter.value = {
+      id: null,
+      name: '',
+      persona: '',
+      greeting: '',
+      isPlayer: false
+    }
+  }, 300)
+}
+
+/**
+ * 保存角色
+ */
+const saveCharacter = (characterData) => {
+  if (!characterData.name.trim()) {
+    return
+  }
+
+  const processedData = {
+    name: characterData.name.trim(),
+    description: characterData.description || '',
+    personality: characterData.personality || '',
+    background: characterData.background || '',
+    isPublic: characterData.isPublic || false,
+    allowEdit: characterData.allowEdit || false,
+    avatar: characterData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${characterData.name}`
+  }
+
+  if (characterData.id) {
+    // 更新现有角色
+    const index = characters.value.findIndex(c => c.id === characterData.id)
+    if (index !== -1) {
+      characters.value[index] = { ...characters.value[index], ...processedData }
+    }
+  } else {
+    // 创建新角色
+    const newCharacter = {
+      id: Date.now(),
+      ...processedData
+    }
+    characters.value.push(newCharacter)
+  }
+
+  // 这里可以添加API调用来保存到服务器
+  console.log('Character saved:', processedData)
+  
+  // 显示成功消息
+  alert(t('chat.characters.saveSuccess'))
+  
+  closeCharacterEditor()
+}
+
+/**
+ * 删除角色
+ * @param {number} characterId - 角色ID
+ */
+const deleteCharacter = (characterId) => {
+  if (confirm(t('chat.characters.deleteConfirm'))) {
+    const index = characters.value.findIndex(c => c.id === characterId)
+    if (index !== -1) {
+      characters.value.splice(index, 1)
+      // 这里可以添加API调用来删除服务器上的角色
+      console.log('Character deleted:', characterId)
+      // 如果正在编辑这个角色，关闭编辑器
+      if (editingCharacter.value && editingCharacter.value.id === characterId) {
+        closeCharacterEditor()
+      }
+      // 显示成功消息
+      alert(t('chat.characters.deleteSuccess'))
+    }
   }
 }
 
@@ -1512,9 +1649,14 @@ onUnmounted(() => {
   padding: 16px;
   text-align: center;
   cursor: pointer;
+  position: relative;
   
   &:hover {
     transform: translateY(-2px);
+    
+    .character-actions {
+      opacity: 1;
+    }
   }
 }
 
@@ -1540,6 +1682,44 @@ onUnmounted(() => {
   margin: 0;
   color: map.get(map.get($colors, light), text-secondary);
   @include text-shadow-light;
+}
+
+.character-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  
+  .edit-btn, .delete-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      transform: scale(1.1);
+    }
+  }
+  
+  .edit-btn:hover {
+    background: rgba(59, 130, 246, 0.9);
+    color: white;
+  }
+  
+  .delete-btn:hover {
+    background: rgba(239, 68, 68, 0.9);
+    color: white;
+  }
 }
 
 // 世界设定列表

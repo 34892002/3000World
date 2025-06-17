@@ -1,5 +1,8 @@
 export default {
     chat: {
+        messages: { // 页面通用部分
+            "welcome": "Welcome to this application！"
+        },
         user: {
             avatar: 'User Avatar',
             online: 'Online',
@@ -45,7 +48,34 @@ export default {
             allowInvites: 'Allow Invites'
         },
         characters: {
-            title: 'Characters'
+            title: 'Characters',
+            createTitle: 'Create Character',
+            editTitle: 'Edit Character',
+            basicInfo: 'Basic Information',
+            nameLabel: 'Character Name',
+            namePlaceholder: 'Enter character name',
+            descriptionLabel: 'Character Description',
+            descriptionPlaceholder: 'Enter character description',
+            avatarLabel: 'Character Avatar',
+            avatarPlaceholder: 'Enter avatar URL',
+            personalityTitle: 'Personality Traits',
+            personalityLabel: 'Personality',
+            personalityPlaceholder: 'Describe the character\'s personality traits...',
+            backgroundLabel: 'Background Story',
+            backgroundPlaceholder: 'Describe the character\'s background story...',
+            personaTitle: 'Character Setup',
+            personaLabel: 'Character Persona',
+            personaPlaceholder: 'Describe the character\'s personality, background, speaking style, etc...',
+            greetingLabel: 'Greeting',
+            greetingPlaceholder: 'The character\'s first words or greeting...',
+            settingsTitle: 'Character Settings',
+            isPublic: 'Public Character',
+            isPublicHelp: 'Allow other users to use this character',
+            allowEdit: 'Allow Editing',
+            allowEditHelp: 'Allow other users to modify this character',
+            deleteConfirm: 'Are you sure you want to delete this character?',
+            deleteSuccess: 'Character deleted successfully',
+            saveSuccess: 'Character saved successfully'
         },
         worldbook: {
             title: 'Worldbook'
@@ -104,9 +134,6 @@ export default {
         importFailed: 'Import failed',
         invalidFile: 'Invalid file format',
         enterWorld: 'Enter World'
-    },
-    messages: {
-        "welcome": "Welcome to this application！"
     },
     api: {
         error: {
