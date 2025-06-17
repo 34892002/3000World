@@ -281,46 +281,9 @@ watch(() => props.group, (newGroup) => {
 </script>
 
 <style lang="scss" scoped>
-// SCSS变量定义
-$primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-$dark-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-$font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-$border-radius-lg: 20px;
-$border-radius-md: 12px;
-$border-radius-sm: 8px;
-$transition-base: 0.2s;
-$transition-slow: 0.3s;
-$shadow-base: 0 8px 32px rgba(0, 0, 0, 0.1);
-$shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
-$backdrop-blur: blur(20px);
-
-// 颜色变量
-$colors: (
-  primary: #667eea,
-  secondary: #764ba2,
-  success: #10b981,
-  danger: #ef4444,
-  warning: #f59e0b,
-  info: #3b82f6,
-  light: (
-    bg-primary: rgba(255, 255, 255, 0.98),
-    bg-secondary: rgba(255, 255, 255, 0.9),
-    bg-tertiary: rgba(255, 255, 255, 0.5),
-    text-primary: #111827,
-    text-secondary: #374151,
-    text-muted: #6b7280,
-    border: rgba(0, 0, 0, 0.1)
-  ),
-  dark: (
-    bg-primary: rgba(15, 23, 42, 0.95),
-    bg-secondary: rgba(30, 41, 59, 0.8),
-    bg-tertiary: rgba(30, 41, 59, 0.5),
-    text-primary: #f1f5f9,
-    text-secondary: #e2e8f0,
-    text-muted: #94a3b8,
-    border: rgba(71, 85, 105, 0.3)
-  )
-);
+// 导入通用变量和混合宏
+@use 'sass:map';
+@use '@/styles/variables.scss' as *;
 
 // 模态框
 .modal-overlay {
@@ -352,13 +315,13 @@ $colors: (
   align-items: center;
   justify-content: space-between;
   padding: 20px;
-  border-bottom: 1px solid map-get(map-get($colors, light), border);
+  border-bottom: 1px solid map.get(map.get($colors, light), border);
   
   h3 {
     font-size: 18px;
     font-weight: 600;
     margin: 0;
-    color: map-get(map-get($colors, light), text-primary);
+    color: map.get(map.get($colors, light), text-primary);
     text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
   }
 }
@@ -369,13 +332,13 @@ $colors: (
   font-size: 20px;
   cursor: pointer;
   padding: 4px;
-  color: map-get(map-get($colors, light), text-secondary);
+  color: map.get(map.get($colors, light), text-secondary);
   border-radius: 4px;
   transition: all $transition-base;
   
   &:hover {
     background: rgba(0, 0, 0, 0.1);
-    color: map-get(map-get($colors, light), text-primary);
+    color: map.get(map.get($colors, light), text-primary);
   }
 }
 
@@ -387,7 +350,7 @@ $colors: (
 
 .modal-footer {
   padding: 20px;
-  border-top: 1px solid map-get(map-get($colors, light), border);
+  border-top: 1px solid map.get(map.get($colors, light), border);
   display: flex;
   justify-content: flex-end;
   gap: 12px;

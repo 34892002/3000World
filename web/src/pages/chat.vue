@@ -877,82 +877,10 @@ onUnmounted(() => {
 </script>
 
 <style scoped lang="scss">
-// SCSS变量定义
-$primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-$dark-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-$font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-$border-radius-lg: 20px;
-$border-radius-md: 12px;
-$border-radius-sm: 8px;
-$transition-base: 0.2s;
-$transition-slow: 0.3s;
-$shadow-base: 0 8px 32px rgba(0, 0, 0, 0.1);
-$shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
-$backdrop-blur: blur(20px);
-
-// 颜色变量
-$colors: (
-  primary: #667eea,
-  secondary: #764ba2,
-  success: #10b981,
-  danger: #ef4444,
-  warning: #f59e0b,
-  info: #3b82f6,
-  light: (
-    bg-primary: rgba(255, 255, 255, 0.98),
-    bg-secondary: rgba(255, 255, 255, 0.9),
-    bg-tertiary: rgba(255, 255, 255, 0.5),
-    text-primary: #111827,
-    text-secondary: #374151,
-    text-muted: #6b7280,
-    border: rgba(0, 0, 0, 0.1)
-  ),
-  dark: (
-    bg-primary: rgba(15, 23, 42, 0.95),
-    bg-secondary: rgba(30, 41, 59, 0.8),
-    bg-tertiary: rgba(30, 41, 59, 0.5),
-    text-primary: #f1f5f9,
-    text-secondary: #e2e8f0,
-    text-muted: #94a3b8,
-    border: rgba(71, 85, 105, 0.3)
-  )
-);
-
-// 混合宏
-@mixin glass-effect($bg-color: rgba(255, 255, 255, 0.98)) {
-  background: $bg-color;
-  backdrop-filter: $backdrop-blur;
-  box-shadow: $shadow-base;
-}
-
-@mixin button-hover($bg-color: rgba(0, 0, 0, 0.1)) {
-  transition: all $transition-base;
-  cursor: pointer;
-  
-  &:hover {
-    background: $bg-color;
-  }
-}
-
-@mixin text-shadow-light {
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
-}
-
-@mixin text-shadow-dark {
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-}
-
-@mixin card-style {
-  background: map-get(map-get($colors, light), bg-secondary);
-  border-radius: $border-radius-md;
-  border: 1px solid map-get(map-get($colors, light), border);
-  transition: all $transition-base;
-  
-  &:hover {
-    background: rgba(102, 126, 234, 0.1);
-    transform: translateY(-1px);
-  }
-}
+// 导入通用变量和混合宏
+@use 'sass:map';
+@use 'sass:color';
+@use '@/styles/variables.scss' as *;
 
 // 全局样式
 .chat-app {
@@ -981,7 +909,7 @@ $colors: (
   .form-section {
     margin-bottom: 2rem;
     padding-bottom: 1.5rem;
-    border-bottom: 1px solid map-get(map-get($colors, light), border);
+    border-bottom: 1px solid map.get(map.get($colors, light), border);
     
     &:last-child {
       border-bottom: none;
@@ -989,7 +917,7 @@ $colors: (
     }
     
     h4 {
-      color: map-get(map-get($colors, light), text-primary);
+      color: map.get(map.get($colors, light), text-primary);
       font-size: 1.1rem;
       font-weight: 600;
       margin-bottom: 1rem;
@@ -997,7 +925,7 @@ $colors: (
     }
     
     h5 {
-      color: map-get(map-get($colors, light), text-secondary);
+      color: map.get(map.get($colors, light), text-secondary);
       font-size: 0.9rem;
       font-weight: 500;
       margin-bottom: 0.75rem;
@@ -1009,7 +937,7 @@ $colors: (
     
     label {
       display: block;
-      color: map-get(map-get($colors, light), text-secondary);
+      color: map.get(map.get($colors, light), text-secondary);
       font-weight: 500;
       margin-bottom: 0.5rem;
       font-size: 0.9rem;
@@ -1019,22 +947,22 @@ $colors: (
   .form-input, .form-textarea {
     width: 100%;
     padding: 0.75rem 1rem;
-    border: 2px solid map-get(map-get($colors, light), border);
+    border: 2px solid map.get(map.get($colors, light), border);
     border-radius: $border-radius-sm;
     background: rgba(255, 255, 255, 0.8);
-    color: map-get(map-get($colors, light), text-primary);
+    color: map.get(map.get($colors, light), text-primary);
     font-size: 0.9rem;
     transition: all $transition-base;
     
     &:focus {
       outline: none;
-      border-color: map-get($colors, primary);
+      border-color: map.get($colors, primary);
       background: rgba(255, 255, 255, 0.95);
       box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
     }
     
     &::placeholder {
-      color: map-get(map-get($colors, light), text-muted);
+      color: map.get(map.get($colors, light), text-muted);
     }
   }
   
@@ -1057,7 +985,7 @@ $colors: (
       height: 60px;
       border-radius: $border-radius-sm;
       overflow: hidden;
-      border: 2px solid map-get(map-get($colors, light), border);
+      border: 2px solid map.get(map.get($colors, light), border);
       
       img {
         width: 100%;
@@ -1072,7 +1000,7 @@ $colors: (
     align-items: center;
     gap: 0.75rem;
     cursor: pointer;
-    color: map-get(map-get($colors, light), text-secondary);
+    color: map.get(map.get($colors, light), text-secondary);
     font-weight: 500;
     
     input[type="checkbox"] {
@@ -1082,7 +1010,7 @@ $colors: (
     .checkbox {
       width: 20px;
       height: 20px;
-      border: 2px solid map-get(map-get($colors, light), border);
+      border: 2px solid map.get(map.get($colors, light), border);
       border-radius: 4px;
       background: rgba(255, 255, 255, 0.8);
       position: relative;
@@ -1102,8 +1030,8 @@ $colors: (
     }
     
     input[type="checkbox"]:checked + .checkbox {
-      background: map-get($colors, primary);
-      border-color: map-get($colors, primary);
+      background: map.get($colors, primary);
+      border-color: map.get($colors, primary);
       
       &::after {
         opacity: 1;
@@ -1125,7 +1053,7 @@ $colors: (
     .character-list, .member-list {
       max-height: 200px;
       overflow-y: auto;
-      border: 1px solid map-get(map-get($colors, light), border);
+      border: 1px solid map.get(map.get($colors, light), border);
       border-radius: $border-radius-sm;
       background: rgba(255, 255, 255, 0.5);
     }
@@ -1136,7 +1064,7 @@ $colors: (
     align-items: center;
     gap: 0.75rem;
     padding: 0.75rem;
-    border-bottom: 1px solid map-get(map-get($colors, light), border);
+    border-bottom: 1px solid map.get(map.get($colors, light), border);
     cursor: pointer;
     transition: all $transition-base;
     
@@ -1152,7 +1080,7 @@ $colors: (
       background: rgba(102, 126, 234, 0.15);
       
       .selection-indicator {
-        color: map-get($colors, primary);
+        color: map.get($colors, primary);
         font-weight: bold;
       }
     }
@@ -1162,17 +1090,17 @@ $colors: (
       height: 40px;
       border-radius: 50%;
       object-fit: cover;
-      border: 2px solid map-get(map-get($colors, light), border);
+      border: 2px solid map.get(map.get($colors, light), border);
     }
     
     .character-name, .member-name {
       flex: 1;
-      color: map-get(map-get($colors, light), text-primary);
+      color: map.get(map.get($colors, light), text-primary);
       font-weight: 500;
     }
     
     .selection-indicator {
-      color: map-get(map-get($colors, light), text-muted);
+      color: map.get(map.get($colors, light), text-muted);
       font-weight: bold;
       font-size: 1.2rem;
     }
@@ -1180,7 +1108,7 @@ $colors: (
     .remove-member-btn {
       background: none;
       border: none;
-      color: map-get($colors, danger);
+      color: map.get($colors, danger);
       cursor: pointer;
       padding: 0.25rem;
       border-radius: 50%;
@@ -1214,11 +1142,11 @@ $colors: (
 }
 
 .btn-primary {
-  background: map-get($colors, primary);
+  background: map.get($colors, primary);
   color: white;
   
   &:hover:not(:disabled) {
-    background: darken(map-get($colors, primary), 10%);
+    background: color.scale(map.get($colors, primary), $lightness: -10%);
     transform: translateY(-1px);
     box-shadow: $shadow-hover;
   }
@@ -1226,8 +1154,8 @@ $colors: (
 
 .btn-secondary {
   background: rgba(255, 255, 255, 0.8);
-  color: map-get(map-get($colors, light), text-secondary);
-  border: 1px solid map-get(map-get($colors, light), border);
+  color: map.get(map.get($colors, light), text-secondary);
+  border: 1px solid map.get(map.get($colors, light), border);
   
   &:hover {
     background: rgba(255, 255, 255, 0.95);
@@ -1272,7 +1200,7 @@ $colors: (
 // 用户头部
 .user-header {
   padding: 20px;
-  border-bottom: 1px solid map-get(map-get($colors, light), border);
+  border-bottom: 1px solid map.get(map.get($colors, light), border);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1291,7 +1219,7 @@ $colors: (
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    border: 3px solid map-get($colors, primary);
+    border: 3px solid map.get($colors, primary);
   }
 }
 
@@ -1305,7 +1233,7 @@ $colors: (
   border: 2px solid white;
   
   &.online {
-    background: map-get($colors, success);
+    background: map.get($colors, success);
   }
 }
 
@@ -1316,14 +1244,14 @@ $colors: (
 .user-name {
   font-size: 16px;
   font-weight: 600;
-  color: map-get(map-get($colors, light), text-primary);
+  color: map.get(map.get($colors, light), text-primary);
   margin: 0;
   @include text-shadow-light;
 }
 
 .user-status {
   font-size: 12px;
-  color: map-get(map-get($colors, light), text-secondary);
+  color: map.get(map.get($colors, light), text-secondary);
   margin: 0;
   @include text-shadow-light;
 }
@@ -1380,11 +1308,11 @@ $colors: (
   font-size: 14px;
   font-weight: 500;
   flex: 1;
-  color: map-get(map-get($colors, light), text-primary);
+  color: map.get(map.get($colors, light), text-primary);
 }
 
 .tab-badge {
-  background: map-get($colors, danger);
+  background: map.get($colors, danger);
   color: white;
   font-size: 11px;
   padding: 2px 6px;
@@ -1407,14 +1335,14 @@ $colors: (
 .search-icon {
   position: absolute;
   left: 12px;
-  color: map-get(map-get($colors, light), text-muted);
+  color: map.get(map.get($colors, light), text-muted);
   z-index: 1;
 }
 
 .search-input {
   width: 100%;
   padding: 12px 12px 12px 40px;
-  border: 1px solid map-get(map-get($colors, light), border);
+  border: 1px solid map.get(map.get($colors, light), border);
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.8);
   font-size: 14px;
@@ -1422,7 +1350,7 @@ $colors: (
   transition: all $transition-base;
   
   &:focus {
-    border-color: map-get($colors, primary);
+    border-color: map.get($colors, primary);
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
   }
 }
@@ -1447,7 +1375,7 @@ $colors: (
   h4 {
     font-size: 16px;
     font-weight: 600;
-    color: map-get(map-get($colors, light), text-primary);
+    color: map.get(map.get($colors, light), text-primary);
     margin: 0;
     @include text-shadow-light;
   }
@@ -1486,7 +1414,7 @@ $colors: (
   border-radius: $border-radius-md;
   cursor: pointer;
   transition: all $transition-base;
-  background: map-get(map-get($colors, light), bg-tertiary);
+  background: map.get(map.get($colors, light), bg-tertiary);
   
   &:hover {
     background: rgba(102, 126, 234, 0.1);
@@ -1513,7 +1441,7 @@ $colors: (
 
 .group-avatar {
   img {
-    border: 2px solid map-get($colors, success);
+    border: 2px solid map.get($colors, success);
   }
 }
 
@@ -1521,7 +1449,7 @@ $colors: (
   position: absolute;
   top: -4px;
   right: -4px;
-  background: map-get($colors, danger);
+  background: map.get($colors, danger);
   color: white;
   font-size: 10px;
   padding: 2px 6px;
@@ -1542,7 +1470,7 @@ $colors: (
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: map-get(map-get($colors, light), text-primary);
+  color: map.get(map.get($colors, light), text-primary);
   @include text-shadow-light;
 }
 
@@ -1553,7 +1481,7 @@ $colors: (
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: map-get(map-get($colors, light), text-secondary);
+  color: map.get(map.get($colors, light), text-secondary);
   @include text-shadow-light;
 }
 
@@ -1603,14 +1531,14 @@ $colors: (
   font-size: 12px;
   font-weight: 600;
   margin: 0 0 4px 0;
-  color: map-get(map-get($colors, light), text-primary);
+  color: map.get(map.get($colors, light), text-primary);
   @include text-shadow-light;
 }
 
 .character-desc {
   font-size: 10px;
   margin: 0;
-  color: map-get(map-get($colors, light), text-secondary);
+  color: map.get(map.get($colors, light), text-secondary);
   @include text-shadow-light;
 }
 
@@ -1632,7 +1560,7 @@ $colors: (
 
 .worldbook-icon {
   font-size: 20px;
-  color: map-get(map-get($colors, light), text-primary);
+  color: map.get(map.get($colors, light), text-primary);
 }
 
 .worldbook-info {
@@ -1643,14 +1571,14 @@ $colors: (
   font-size: 14px;
   font-weight: 600;
   margin: 0 0 4px 0;
-  color: map-get(map-get($colors, light), text-primary);
+  color: map.get(map.get($colors, light), text-primary);
   @include text-shadow-light;
 }
 
 .worldbook-desc {
   font-size: 12px;
   margin: 0;
-  color: map-get(map-get($colors, light), text-secondary);
+  color: map.get(map.get($colors, light), text-secondary);
   @include text-shadow-light;
 }
 
@@ -1672,7 +1600,7 @@ $colors: (
 
 .setting-icon {
   font-size: 20px;
-  color: map-get(map-get($colors, light), text-primary);
+  color: map.get(map.get($colors, light), text-primary);
 }
 
 .setting-info {
@@ -1682,14 +1610,14 @@ $colors: (
     font-size: 14px;
     font-weight: 600;
     margin: 0 0 4px 0;
-    color: map-get(map-get($colors, light), text-primary);
+    color: map.get(map.get($colors, light), text-primary);
     @include text-shadow-light;
   }
   
   p {
     font-size: 12px;
     margin: 0;
-    color: map-get(map-get($colors, light), text-secondary);
+    color: map.get(map.get($colors, light), text-secondary);
     @include text-shadow-light;
   }
 }
@@ -1783,7 +1711,7 @@ $colors: (
   align-items: center;
   justify-content: space-between;
   padding: 20px;
-  border-bottom: 1px solid map-get(map-get($colors, light), border);
+  border-bottom: 1px solid map.get(map.get($colors, light), border);
   
   &-info {
     display: flex;
@@ -1802,7 +1730,7 @@ $colors: (
       font-size: 18px;
       font-weight: 600;
       margin: 0;
-      color: map-get(map-get($colors, light), text-primary);
+      color: map.get(map.get($colors, light), text-primary);
       @include text-shadow-light;
     }
   }
@@ -1815,7 +1743,7 @@ $colors: (
 
 .member-info, .status-info {
   font-size: 12px;
-  color: map-get(map-get($colors, light), text-secondary);
+  color: map.get(map.get($colors, light), text-secondary);
   margin: 4px 0 0 0;
   @include text-shadow-light;
 }
@@ -1852,7 +1780,7 @@ $colors: (
 
 .message-sender {
   font-size: 12px;
-  color: map-get(map-get($colors, light), text-muted);
+  color: map.get(map.get($colors, light), text-muted);
   margin-bottom: 4px;
   padding: 0 12px;
 }
@@ -1880,9 +1808,9 @@ $colors: (
   
   &.received {
     background: rgba(255, 255, 255, 0.95);
-    color: map-get(map-get($colors, light), text-primary);
+    color: map.get(map.get($colors, light), text-primary);
     align-self: flex-start;
-    border: 1px solid map-get(map-get($colors, light), border);
+    border: 1px solid map.get(map.get($colors, light), border);
   }
 }
 
@@ -1910,7 +1838,7 @@ $colors: (
 }
 
 .message-status {
-  color: map-get($colors, success);
+  color: map.get($colors, success);
 }
 
 // 空状态
@@ -1921,19 +1849,19 @@ $colors: (
   align-items: center;
   justify-content: center;
   text-align: center;
-  color: map-get(map-get($colors, light), text-muted);
+  color: map.get(map.get($colors, light), text-muted);
   
   h3 {
     font-size: 20px;
     font-weight: 600;
-    color: map-get(map-get($colors, light), text-primary);
+    color: map.get(map.get($colors, light), text-primary);
     margin: 0 0 8px 0;
     @include text-shadow-light;
   }
   
   p {
     font-size: 14px;
-    color: map-get(map-get($colors, light), text-secondary);
+    color: map.get(map.get($colors, light), text-secondary);
     margin: 0;
     line-height: 1.5;
     @include text-shadow-light;
@@ -1949,7 +1877,7 @@ $colors: (
 // 消息输入区域
 .message-input-container {
   padding: 20px;
-  border-top: 1px solid map-get(map-get($colors, light), border);
+  border-top: 1px solid map.get(map.get($colors, light), border);
   background: white;
 }
 
@@ -2028,7 +1956,7 @@ $colors: (
   align-items: center;
   justify-content: space-between;
   padding: 20px;
-  border-bottom: 1px solid map-get(map-get($colors, light), border);
+  border-bottom: 1px solid map.get(map.get($colors, light), border);
   color: #1f2937;
   
   h3 {
@@ -2104,7 +2032,7 @@ input[type="checkbox"] {
   display: none;
   
   &:checked + .switch {
-    background: map-get($colors, primary);
+    background: map.get($colors, primary);
     
     &::before {
       transform: translateX(20px);
@@ -2114,7 +2042,7 @@ input[type="checkbox"] {
 
 .modal-footer {
   padding: 20px;
-  border-top: 1px solid map-get(map-get($colors, light), border);
+  border-top: 1px solid map.get(map.get($colors, light), border);
   text-align: right;
 }
 
@@ -2153,13 +2081,13 @@ input[type="checkbox"] {
   }
   
   .sidebar {
-    @include glass-effect(map-get(map-get($colors, dark), bg-primary));
-    border: 1px solid map-get(map-get($colors, dark), border);
+    @include glass-effect(map.get(map.get($colors, dark), bg-primary));
+    border: 1px solid map.get(map.get($colors, dark), border);
   }
   
   .main-content {
-    @include glass-effect(map-get(map-get($colors, dark), bg-primary));
-    border: 1px solid map-get(map-get($colors, dark), border);
+    @include glass-effect(map.get(map.get($colors, dark), bg-primary));
+    border: 1px solid map.get(map.get($colors, dark), border);
   }
 
   // 文本颜色
@@ -2171,7 +2099,7 @@ input[type="checkbox"] {
   .worldbook-title,
   .setting-info h5,
   .empty-state h3 {
-    color: map-get(map-get($colors, dark), text-primary);
+    color: map.get(map.get($colors, dark), text-primary);
     @include text-shadow-dark;
   }
   
@@ -2183,13 +2111,13 @@ input[type="checkbox"] {
   .worldbook-desc,
   .setting-info p,
   .empty-state p {
-    color: map-get(map-get($colors, dark), text-secondary);
+    color: map.get(map.get($colors, dark), text-secondary);
     @include text-shadow-dark;
   }
 
   // 导航标签
   .tab-label {
-    color: map-get(map-get($colors, dark), text-secondary);
+    color: map.get(map.get($colors, dark), text-secondary);
   }
   
   .nav-tab:hover {
@@ -2198,28 +2126,28 @@ input[type="checkbox"] {
   
   // 搜索框
   .search-input {
-    background: map-get(map-get($colors, dark), bg-secondary);
+    background: map.get(map.get($colors, dark), bg-secondary);
     border: 1px solid rgba(71, 85, 105, 0.5);
-    color: map-get(map-get($colors, dark), text-primary);
+    color: map.get(map.get($colors, dark), text-primary);
     
     &::placeholder {
-      color: map-get(map-get($colors, dark), text-muted);
+      color: map.get(map.get($colors, dark), text-muted);
     }
     
     &:focus {
-      border-color: map-get($colors, primary);
+      border-color: map.get($colors, primary);
       box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
     }
   }
   
   .search-icon {
-    color: map-get(map-get($colors, dark), text-muted);
+    color: map.get(map.get($colors, dark), text-muted);
   }
   
   // 组件样式
   .chat-item {
-    background: map-get(map-get($colors, dark), bg-tertiary);
-    border: 1px solid map-get(map-get($colors, dark), border);
+    background: map.get(map.get($colors, dark), bg-tertiary);
+    border: 1px solid map.get(map.get($colors, dark), border);
     
     &:hover {
       background: rgba(71, 85, 105, 0.4);
@@ -2227,8 +2155,8 @@ input[type="checkbox"] {
   }
   
   .character-card {
-    background: map-get(map-get($colors, dark), bg-secondary);
-    border: 1px solid map-get(map-get($colors, dark), border);
+    background: map.get(map.get($colors, dark), bg-secondary);
+    border: 1px solid map.get(map.get($colors, dark), border);
     
     &:hover {
       background: rgba(71, 85, 105, 0.4);
@@ -2236,8 +2164,8 @@ input[type="checkbox"] {
   }
   
   .worldbook-item {
-    background: map-get(map-get($colors, dark), bg-secondary);
-    border: 1px solid map-get(map-get($colors, dark), border);
+    background: map.get(map.get($colors, dark), bg-secondary);
+    border: 1px solid map.get(map.get($colors, dark), border);
     
     &:hover {
       background: rgba(71, 85, 105, 0.4);
@@ -2245,12 +2173,12 @@ input[type="checkbox"] {
   }
   
   .worldbook-icon {
-    color: map-get(map-get($colors, dark), text-secondary);
+    color: map.get(map.get($colors, dark), text-secondary);
   }
   
   .setting-item {
-    background: map-get(map-get($colors, dark), bg-secondary);
-    border: 1px solid map-get(map-get($colors, dark), border);
+    background: map.get(map.get($colors, dark), bg-secondary);
+    border: 1px solid map.get(map.get($colors, dark), border);
     
     &:hover {
       background: rgba(71, 85, 105, 0.4);
@@ -2258,7 +2186,7 @@ input[type="checkbox"] {
   }
   
   .setting-icon {
-    color: map-get(map-get($colors, dark), text-secondary);
+    color: map.get(map.get($colors, dark), text-secondary);
   }
 
   // 消息区域
