@@ -1815,6 +1815,8 @@ onUnmounted(() => {
   @media (max-width: 768px) {
     margin: 0;
     border-radius: 0;
+    height: 100vh;
+    position: relative;
   }
 }
 
@@ -1883,6 +1885,11 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
+  
+  @media (max-width: 768px) {
+    height: calc(100vh - 80px); // 减去移动端头部高度
+    position: relative;
+  }
 }
 
 // 桌面端聊天头部
@@ -1942,6 +1949,14 @@ onUnmounted(() => {
   overflow-y: auto;
   padding: 20px;
   background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  
+  @media (max-width: 768px) {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    // 确保消息容器不会超出可用空间
+    max-height: calc(100vh - 80px - 100px); // 减去头部和输入框高度
+  }
 }
 
 .message-wrapper {
@@ -2059,6 +2074,17 @@ onUnmounted(() => {
   padding: 20px;
   border-top: 1px solid map.get(map.get($colors, light), border);
   background: white;
+  
+  @media (max-width: 768px) {
+    position: sticky;
+    bottom: 0;
+    padding: 16px;
+    background: white;
+    border-top: 1px solid map.get(map.get($colors, light), border);
+    z-index: 10;
+    // 确保输入框始终可见
+    flex-shrink: 0;
+  }
 }
 
 .input-wrapper {
