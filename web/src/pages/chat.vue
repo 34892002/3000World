@@ -305,51 +305,27 @@
     />
 
     <!-- 设置对话框 -->
-    <div v-if="showSettings" class="modal-overlay" @click="showSettings = false">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h3>{{ t('chat.settings.title') }}</h3>
-          <button class="close-btn" @click="showSettings = false">✕</button>
-        </div>
-        <div class="modal-body">
-          <div class="setting-group">
-            <label>{{ t('chat.settings.language') }}</label>
-            <select v-model="selectedLanguage" @change="changeLanguage">
-              <option v-for="lang in languages" :key="lang.code" :value="lang.code">
-                {{ lang.name }}
-              </option>
-            </select>
-          </div>
-          <div class="setting-group">
-            <label class="switch-label">
-              <input type="checkbox" v-model="isDarkTheme" @change="toggleTheme" />
-              <span class="switch"></span>
-              {{ t('chat.settings.darkTheme') }}
-            </label>
-          </div>
-          <div class="setting-group">
-            <label class="switch-label">
-              <input type="checkbox" v-model="notificationsEnabled" />
-              <span class="switch"></span>
-              {{ t('chat.settings.notifications') }}
-            </label>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn-secondary" @click="showSettings = false">
-            {{ t('chat.settings.close') }}
-          </button>
-        </div>
-      </div>
-    </div>
+    <SettingsDialog
+      :visible="showSettings"
+      :model-language="selectedLanguage"
+      :model-dark-theme="isDarkTheme"
+      :model-notifications="notificationsEnabled"
+      @close="showSettings = false"
+      @language-change="changeLanguage"
+      @theme-change="toggleTheme"
+      @notification-change="handleNotificationChange"
+    />
+    
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, watch, onUnmounted } from 'vue'
+import { ref, computed, onMounted, nextTick, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+
 import GroupEditor from '@/components/GroupEditor.vue'
 import CharacterEditor from '@/components/CharacterEditor.vue'
+import SettingsDialog from '@/components/SettingsDialog.vue'
 
 // 国际化
 const { t, locale } = useI18n()
@@ -392,15 +368,9 @@ const userName = ref('用户名')
 const userAvatar = ref('https://api.dicebear.com/7.x/avataaars/svg?seed=user')
 
 // 设置相关
-const selectedLanguage = ref(locale.value)
+const selectedLanguage = ref('zhHans')
 const isDarkTheme = ref(false)
 const notificationsEnabled = ref(true)
-
-// 语言选项
-const languages = ref([
-  { name: '中文', code: 'zhHans' },
-  { name: 'English', code: 'en' }
-])
 
 // 导航标签
 const navTabs = ref([
@@ -561,26 +531,6 @@ const filteredWorldbook = computed(() => {
   )
 })
 
-/**
- * 可选择的角色列表（排除已选择的）
- */
-const availableCharacters = computed(() => {
-  return characters.value
-})
-
-/**
- * 已选择的成员列表
- */
-const selectedMembers = computed(() => {
-  return characters.value.filter(char => editingGroup.value.members.includes(char.id))
-})
-
-/**
- * 是否可以保存群组
- */
-const canSaveGroup = computed(() => {
-  return editingGroup.value.name.trim().length > 0
-})
 
 /**
  * 获取当前选中的聊天
@@ -749,39 +699,6 @@ const saveGroup = () => {
   }
 
   closeGroupEditor()
-}
-
-/**
- * 切换角色选择状态
- * @param {Object} character - 角色对象
- */
-const toggleCharacterSelection = (character) => {
-  const index = editingGroup.value.members.findIndex(id => id === character.id)
-  if (index !== -1) {
-    editingGroup.value.members.splice(index, 1)
-  } else {
-    editingGroup.value.members.push(character.id)
-  }
-}
-
-/**
- * 检查角色是否已选择
- * @param {number} characterId - 角色ID
- * @returns {boolean} 是否已选择
- */
-const isCharacterSelected = (characterId) => {
-  return editingGroup.value.members.includes(characterId)
-}
-
-/**
- * 移除群组成员
- * @param {number} characterId - 角色ID
- */
-const removeMember = (characterId) => {
-  const index = editingGroup.value.members.findIndex(id => id === characterId)
-  if (index !== -1) {
-    editingGroup.value.members.splice(index, 1)
-  }
 }
 
 /**
@@ -980,15 +897,37 @@ const formatMessageTime = (time) => {
 /**
  * 切换语言
  */
-const changeLanguage = () => {
-  locale.value = selectedLanguage.value
+const changeLanguage = (newLanguage) => {
+  if (newLanguage) {
+    selectedLanguage.value = newLanguage
+    // 映射语言代码到i18n格式
+    const localeMap = {
+      'zhHans': 'zhHans',
+      'en': 'en'
+    }
+    locale.value = localeMap[newLanguage] || newLanguage
+  }
 }
 
 /**
  * 切换主题
  */
-const toggleTheme = () => {
+const toggleTheme = (newTheme) => {
+  if (typeof newTheme === 'boolean') {
+    isDarkTheme.value = newTheme
+  }
   document.documentElement.classList.toggle('dark-theme', isDarkTheme.value)
+}
+
+/**
+ * 处理通知设置变更
+ */
+const handleNotificationChange = (enabled) => {
+  notificationsEnabled.value = enabled
+  // 这里可以添加实际的通知权限请求逻辑
+  if (enabled && 'Notification' in window) {
+    Notification.requestPermission()
+  }
 }
 
 // 监听窗口大小变化
@@ -1027,240 +966,6 @@ onUnmounted(() => {
   font-family: $font-family;
   overflow: hidden;
   gap: 0;
-}
-
-// 群组编辑器样式
-.editor-modal {
-  max-width: 800px;
-  width: 90vw;
-  max-height: 90vh;
-  overflow-y: auto;
-  
-  .modal-body {
-    max-height: calc(90vh - 120px);
-    overflow-y: auto;
-  }
-}
-
-.group-form {
-  .form-section {
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid map.get(map.get($colors, light), border);
-    
-    &:last-child {
-      border-bottom: none;
-      margin-bottom: 0;
-    }
-    
-    h4 {
-      color: map.get(map.get($colors, light), text-primary);
-      font-size: 1.1rem;
-      font-weight: 600;
-      margin-bottom: 1rem;
-      @include text-shadow-light;
-    }
-    
-    h5 {
-      color: map.get(map.get($colors, light), text-secondary);
-      font-size: 0.9rem;
-      font-weight: 500;
-      margin-bottom: 0.75rem;
-    }
-  }
-  
-  .form-group {
-    margin-bottom: 1.5rem;
-    
-    label {
-      display: block;
-      color: map.get(map.get($colors, light), text-secondary);
-      font-weight: 500;
-      margin-bottom: 0.5rem;
-      font-size: 0.9rem;
-    }
-  }
-  
-  .form-input, .form-textarea {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border: 2px solid map.get(map.get($colors, light), border);
-    border-radius: $border-radius-sm;
-    background: rgba(255, 255, 255, 0.8);
-    color: map.get(map.get($colors, light), text-primary);
-    font-size: 0.9rem;
-    transition: all $transition-base;
-    
-    &:focus {
-      outline: none;
-      border-color: map.get($colors, primary);
-      background: rgba(255, 255, 255, 0.95);
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-    
-    &::placeholder {
-      color: map.get(map.get($colors, light), text-muted);
-    }
-  }
-  
-  .form-textarea {
-    resize: vertical;
-    min-height: 80px;
-  }
-  
-  .avatar-input-group {
-    display: flex;
-    gap: 1rem;
-    align-items: flex-start;
-    
-    .form-input {
-      flex: 1;
-    }
-    
-    .avatar-preview {
-      width: 60px;
-      height: 60px;
-      border-radius: $border-radius-sm;
-      overflow: hidden;
-      border: 2px solid map.get(map.get($colors, light), border);
-      
-      img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
-    }
-  }
-  
-  .checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    cursor: pointer;
-    color: map.get(map.get($colors, light), text-secondary);
-    font-weight: 500;
-    
-    input[type="checkbox"] {
-      display: none;
-    }
-    
-    .checkbox {
-      width: 20px;
-      height: 20px;
-      border: 2px solid map.get(map.get($colors, light), border);
-      border-radius: 4px;
-      background: rgba(255, 255, 255, 0.8);
-      position: relative;
-      transition: all $transition-base;
-      
-      &::after {
-        content: '✓';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        color: white;
-        font-size: 12px;
-        opacity: 0;
-        transition: opacity $transition-base;
-      }
-    }
-    
-    input[type="checkbox"]:checked + .checkbox {
-      background: map.get($colors, primary);
-      border-color: map.get($colors, primary);
-      
-      &::after {
-        opacity: 1;
-      }
-    }
-  }
-}
-
-.members-selector {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-  
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
-  
-  .available-characters, .selected-members {
-    .character-list, .member-list {
-      max-height: 200px;
-      overflow-y: auto;
-      border: 1px solid map.get(map.get($colors, light), border);
-      border-radius: $border-radius-sm;
-      background: rgba(255, 255, 255, 0.5);
-    }
-  }
-  
-  .character-item, .member-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem;
-    border-bottom: 1px solid map.get(map.get($colors, light), border);
-    cursor: pointer;
-    transition: all $transition-base;
-    
-    &:last-child {
-      border-bottom: none;
-    }
-    
-    &:hover {
-      background: rgba(102, 126, 234, 0.1);
-    }
-    
-    &.selected {
-      background: rgba(102, 126, 234, 0.15);
-      
-      .selection-indicator {
-        color: map.get($colors, primary);
-        font-weight: bold;
-      }
-    }
-    
-    .character-avatar, .member-avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 2px solid map.get(map.get($colors, light), border);
-    }
-    
-    .character-name, .member-name {
-      flex: 1;
-      color: map.get(map.get($colors, light), text-primary);
-      font-weight: 500;
-    }
-    
-    .selection-indicator {
-      color: map.get(map.get($colors, light), text-muted);
-      font-weight: bold;
-      font-size: 1.2rem;
-    }
-    
-    .remove-member-btn {
-      background: none;
-      border: none;
-      color: map.get($colors, danger);
-      cursor: pointer;
-      padding: 0.25rem;
-      border-radius: 50%;
-      width: 24px;
-      height: 24px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all $transition-base;
-      
-      &:hover {
-        background: rgba(239, 68, 68, 0.1);
-      }
-    }
-  }
 }
 
 .btn-primary, .btn-secondary {
@@ -2136,42 +1841,6 @@ onUnmounted(() => {
   }
 }
 
-// 模态框
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-  max-width: 400px;
-  width: 90%;
-  max-height: 80vh;
-  overflow: hidden;
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px;
-  border-bottom: 1px solid map.get(map.get($colors, light), border);
-  color: #1f2937;
-  
-  h3 {
-    font-size: 18px;
-    font-weight: 600;
-    margin: 0;
-  }
-}
-
 .close-btn {
   background: none;
   border: none;
@@ -2179,71 +1848,6 @@ onUnmounted(() => {
   cursor: pointer;
   padding: 4px;
   color: #1f2937;
-}
-
-.modal-body {
-  padding: 20px;
-}
-
-.setting-group {
-  margin-bottom: 20px;
-  
-  label {
-    display: block;
-    font-size: 14px;
-    font-weight: 500;
-    margin-bottom: 8px;
-    color: #1f2937;
-  }
-  
-  select {
-    width: 100%;
-    padding: 8px 12px;
-    border: 1px solid #d1d5db;
-    border-radius: $border-radius-sm;
-    font-size: 14px;
-    outline: none;
-  }
-}
-
-.switch-label {
-  display: flex !important;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-}
-
-.switch {
-  position: relative;
-  width: 44px;
-  height: 24px;
-  background: #d1d5db;
-  border-radius: 12px;
-  transition: background-color $transition-base;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 20px;
-    height: 20px;
-    background: white;
-    border-radius: 50%;
-    transition: transform $transition-base;
-  }
-}
-
-input[type="checkbox"] {
-  display: none;
-  
-  &:checked + .switch {
-    background: map.get($colors, primary);
-    
-    &::before {
-      transform: translateX(20px);
-    }
-  }
 }
 
 .modal-footer {
@@ -2429,21 +2033,6 @@ input[type="checkbox"] {
     }
   }
   
-  // 模态框
-  .modal-content {
-    background: rgba(15, 23, 42, 0.98);
-    border: 1px solid rgba(71, 85, 105, 0.3);
-    backdrop-filter: blur(20px);
-  }
-  
-  .modal-header {
-    border-bottom: 1px solid rgba(71, 85, 105, 0.3);
-    
-    h3 {
-      color: #f1f5f9;
-    }
-  }
-  
   .close-btn {
     color: #cbd5e1;
     
@@ -2452,27 +2041,6 @@ input[type="checkbox"] {
       background: rgba(71, 85, 105, 0.3);
       border-radius: 4px;
     }
-  }
-  
-  .setting-group {
-    label {
-      color: #e2e8f0;
-    }
-    
-    select {
-      background: rgba(30, 41, 59, 0.8);
-      border: 1px solid rgba(71, 85, 105, 0.5);
-      color: #f1f5f9;
-      
-      option {
-        background: #1e293b;
-        color: #f1f5f9;
-      }
-    }
-  }
-  
-  .modal-footer {
-    border-top: 1px solid rgba(71, 85, 105, 0.3);
   }
   
   .btn-secondary {
@@ -2509,107 +2077,6 @@ input[type="checkbox"] {
   // 移动端头部
   .mobile-header {
     background: linear-gradient(135deg, #0f172a, #1e293b);
-  }
-  
-  // 开关组件深色主题
-  .switch {
-    background: #475569;
-  }
-  
-  input[type="checkbox"]:checked + .switch {
-    background: #667eea;
-  }
-  
-  // 群组编辑器暗色主题
-  .group-form {
-    .form-section {
-      border-bottom-color: rgba(71, 85, 105, 0.3);
-      
-      h4 {
-        color: #f1f5f9;
-        @include text-shadow-dark;
-      }
-      
-      h5 {
-        color: #e2e8f0;
-      }
-    }
-    
-    .form-group label {
-      color: #e2e8f0;
-    }
-    
-    .form-input, .form-textarea {
-      border-color: rgba(71, 85, 105, 0.5);
-      background: rgba(30, 41, 59, 0.8);
-      color: #f1f5f9;
-      
-      &:focus {
-        background: rgba(30, 41, 59, 0.95);
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
-      }
-      
-      &::placeholder {
-        color: #94a3b8;
-      }
-    }
-    
-    .avatar-preview {
-      border-color: rgba(71, 85, 105, 0.5);
-      background: rgba(30, 41, 59, 0.5);
-    }
-    
-    .checkbox-label {
-      color: #e2e8f0;
-      
-      .checkbox {
-        border-color: rgba(71, 85, 105, 0.5);
-        background: rgba(30, 41, 59, 0.8);
-        
-        &:checked {
-          background: #667eea;
-          border-color: #667eea;
-        }
-      }
-    }
-  }
-  
-  .members-selector {
-    .available-characters, .selected-members {
-      .character-list, .member-list {
-        border-color: rgba(71, 85, 105, 0.3);
-        background: rgba(30, 41, 59, 0.5);
-      }
-    }
-    
-    .character-item, .member-item {
-      border-bottom-color: rgba(71, 85, 105, 0.2);
-      
-      &:hover {
-        background: rgba(71, 85, 105, 0.3);
-      }
-      
-      .character-avatar, .member-avatar {
-        border-color: rgba(71, 85, 105, 0.3);
-      }
-      
-      .character-name, .member-name {
-        color: #f1f5f9;
-      }
-      
-      .selection-indicator {
-        color: #94a3b8;
-      }
-      
-      .remove-btn {
-        color: #f87171;
-        
-        &:hover {
-          background: rgba(248, 113, 113, 0.2);
-        }
-      }
-    }
   }
   
   .btn-secondary {
