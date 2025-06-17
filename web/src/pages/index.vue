@@ -495,7 +495,7 @@ $colors: (
   font-size: 20px;
   font-weight: 600;
   margin-bottom: 20px;
-  color: map-get(map-get($colors, light), text-primary);
+  color: map.get(map.get($colors, light), text-primary);
 }
 
 .section-icon {
@@ -517,20 +517,20 @@ $colors: (
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: $border-radius-md;
   background: rgba(255, 255, 255, 0.8);
-  color: map-get(map-get($colors, light), text-primary);
+  color: map.get(map.get($colors, light), text-primary);
   font-size: 16px;
   font-family: $font-family;
   transition: all $transition-base;
   
   &:focus {
     outline: none;
-    border-color: map-get($colors, primary);
+    border-color: map.get($colors, primary);
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
     background: white;
   }
   
   &::placeholder {
-    color: map-get(map-get($colors, light), text-muted);
+    color: map.get(map.get($colors, light), text-muted);
   }
 }
 
@@ -601,19 +601,19 @@ $colors: (
   
   &.importing {
     background: rgba(59, 130, 246, 0.1);
-    color: map-get($colors, info);
+    color: map.get($colors, info);
     border: 1px solid rgba(59, 130, 246, 0.2);
   }
   
   &.success {
     background: rgba(16, 185, 129, 0.1);
-    color: map-get($colors, success);
+    color: map.get($colors, success);
     border: 1px solid rgba(16, 185, 129, 0.2);
   }
   
   &.error {
     background: rgba(239, 68, 68, 0.1);
-    color: map-get($colors, danger);
+    color: map.get($colors, danger);
     border: 1px solid rgba(239, 68, 68, 0.2);
   }
 }
@@ -682,32 +682,32 @@ $colors: (
   }
   
   .world-selector-card {
-    @include glass-effect(map-get(map-get($colors, dark), bg-primary));
-    border: 1px solid map-get(map-get($colors, dark), border);
+    @include glass-effect(map.get(map.get($colors, dark), bg-primary));
+    border: 1px solid map.get(map.get($colors, dark), border);
   }
   
   .section-title {
-    color: map-get(map-get($colors, dark), text-primary);
+    color: map.get(map.get($colors, dark), text-primary);
   }
   
   .world-select,
   .world-input {
-    background: map-get(map-get($colors, dark), bg-secondary);
-    border: 1px solid map-get(map-get($colors, dark), border);
-    color: map-get(map-get($colors, dark), text-primary);
+    background: map.get(map.get($colors, dark), bg-secondary);
+    border: 1px solid map.get(map.get($colors, dark), border);
+    color: map.get(map.get($colors, dark), text-primary);
     
     &::placeholder {
-      color: map-get(map-get($colors, dark), text-muted);
+      color: map.get(map.get($colors, dark), text-muted);
     }
     
     &:focus {
-      background: map-get(map-get($colors, dark), bg-primary);
-      border-color: map-get($colors, primary);
+      background: map.get(map.get($colors, dark), bg-primary);
+      border-color: map.get($colors, primary);
     }
   }
   
   .world-section.border-top {
-    border-top: 1px solid map-get(map-get($colors, dark), border);
+    border-top: 1px solid map.get(map.get($colors, dark), border);
   }
 }
 </style>

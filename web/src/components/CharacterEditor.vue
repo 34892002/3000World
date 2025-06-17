@@ -371,7 +371,7 @@ watch(() => props.visible, (newVisible) => {
       font-size: 16px;
       font-weight: 600;
       margin: 0 0 16px 0;
-      color: map-get(map-get($colors, light), text-primary);
+      color: map.get(map.get($colors, light), text-primary);
       text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
     }
   }
@@ -384,14 +384,14 @@ watch(() => props.visible, (newVisible) => {
       font-size: 14px;
       font-weight: 500;
       margin-bottom: 6px;
-      color: map-get(map-get($colors, light), text-secondary);
+      color: map.get(map.get($colors, light), text-secondary);
     }
   }
   
   .form-input, .form-textarea {
     width: 100%;
     padding: 10px 12px;
-    border: 1px solid map-get(map-get($colors, light), border);
+    border: 1px solid map.get(map.get($colors, light), border);
     border-radius: $border-radius-sm;
     font-size: 14px;
     outline: none;
@@ -399,13 +399,13 @@ watch(() => props.visible, (newVisible) => {
     background: rgba(255, 255, 255, 0.8);
     
     &:focus {
-      border-color: map-get($colors, primary);
+      border-color: map.get($colors, primary);
       box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
       background: rgba(255, 255, 255, 0.95);
     }
     
     &::placeholder {
-      color: map-get(map-get($colors, light), text-muted);
+      color: map.get(map.get($colors, light), text-muted);
     }
   }
   
@@ -429,7 +429,7 @@ watch(() => props.visible, (newVisible) => {
     height: 48px;
     border-radius: 50%;
     overflow: hidden;
-    border: 2px solid map-get(map-get($colors, light), border);
+    border: 2px solid map.get(map.get($colors, light), border);
     flex-shrink: 0;
     
     img {
@@ -445,7 +445,7 @@ watch(() => props.visible, (newVisible) => {
     gap: 8px;
     cursor: pointer;
     font-size: 14px;
-    color: map-get(map-get($colors, light), text-secondary);
+    color: map.get(map.get($colors, light), text-secondary);
     
     input[type="checkbox"] {
       display: none;
@@ -454,7 +454,7 @@ watch(() => props.visible, (newVisible) => {
     .checkbox {
       width: 18px;
       height: 18px;
-      border: 2px solid map-get(map-get($colors, light), border);
+      border: 2px solid map.get(map.get($colors, light), border);
       border-radius: 3px;
       position: relative;
       transition: all $transition-base;
@@ -474,8 +474,8 @@ watch(() => props.visible, (newVisible) => {
     }
     
     input[type="checkbox"]:checked + .checkbox {
-      background: map-get($colors, primary);
-      border-color: map-get($colors, primary);
+      background: map.get($colors, primary);
+      border-color: map.get($colors, primary);
       
       &::after {
         opacity: 1;
@@ -508,7 +508,7 @@ watch(() => props.visible, (newVisible) => {
 }
 
 .btn-primary {
-  background: map-get($colors, primary);
+  background: map.get($colors, primary);
   color: white;
   
   &:hover:not(:disabled) {
@@ -520,8 +520,8 @@ watch(() => props.visible, (newVisible) => {
 
 .btn-secondary {
   background: rgba(107, 114, 128, 0.1);
-  color: map-get(map-get($colors, light), text-secondary);
-  border: 1px solid map-get(map-get($colors, light), border);
+  color: map.get(map.get($colors, light), text-secondary);
+  border: 1px solid map.get(map.get($colors, light), border);
   
   &:hover {
     background: rgba(107, 114, 128, 0.2);

@@ -372,7 +372,7 @@ watch(() => props.group, (newGroup) => {
       font-size: 16px;
       font-weight: 600;
       margin: 0 0 16px 0;
-      color: map-get(map-get($colors, light), text-primary);
+      color: map.get(map.get($colors, light), text-primary);
       text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
     }
     
@@ -380,7 +380,7 @@ watch(() => props.group, (newGroup) => {
       font-size: 14px;
       font-weight: 500;
       margin: 0 0 8px 0;
-      color: map-get(map-get($colors, light), text-secondary);
+      color: map.get(map.get($colors, light), text-secondary);
     }
   }
   
@@ -392,14 +392,14 @@ watch(() => props.group, (newGroup) => {
       font-size: 14px;
       font-weight: 500;
       margin-bottom: 6px;
-      color: map-get(map-get($colors, light), text-secondary);
+      color: map.get(map.get($colors, light), text-secondary);
     }
   }
   
   .form-input, .form-textarea {
     width: 100%;
     padding: 10px 12px;
-    border: 1px solid map-get(map-get($colors, light), border);
+    border: 1px solid map.get(map.get($colors, light), border);
     border-radius: $border-radius-sm;
     font-size: 14px;
     outline: none;
@@ -407,13 +407,13 @@ watch(() => props.group, (newGroup) => {
     background: rgba(255, 255, 255, 0.8);
     
     &:focus {
-      border-color: map-get($colors, primary);
+      border-color: map.get($colors, primary);
       box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
       background: rgba(255, 255, 255, 0.95);
     }
     
     &::placeholder {
-      color: map-get(map-get($colors, light), text-muted);
+      color: map.get(map.get($colors, light), text-muted);
     }
   }
   
@@ -437,7 +437,7 @@ watch(() => props.group, (newGroup) => {
     height: 48px;
     border-radius: 50%;
     overflow: hidden;
-    border: 2px solid map-get(map-get($colors, light), border);
+    border: 2px solid map.get(map.get($colors, light), border);
     flex-shrink: 0;
     
     img {
@@ -453,7 +453,7 @@ watch(() => props.group, (newGroup) => {
     gap: 8px;
     cursor: pointer;
     font-size: 14px;
-    color: map-get(map-get($colors, light), text-secondary);
+    color: map.get(map.get($colors, light), text-secondary);
     
     input[type="checkbox"] {
       display: none;
@@ -462,7 +462,7 @@ watch(() => props.group, (newGroup) => {
     .checkbox {
       width: 18px;
       height: 18px;
-      border: 2px solid map-get(map-get($colors, light), border);
+      border: 2px solid map.get(map.get($colors, light), border);
       border-radius: 3px;
       position: relative;
       transition: all $transition-base;
@@ -482,8 +482,8 @@ watch(() => props.group, (newGroup) => {
     }
     
     input[type="checkbox"]:checked + .checkbox {
-      background: map-get($colors, primary);
-      border-color: map-get($colors, primary);
+      background: map.get($colors, primary);
+      border-color: map.get($colors, primary);
       
       &::after {
         opacity: 1;
@@ -504,7 +504,7 @@ watch(() => props.group, (newGroup) => {
   
   .available-characters, .selected-members {
     .character-list, .member-list {
-      border: 1px solid map-get(map-get($colors, light), border);
+      border: 1px solid map.get(map.get($colors, light), border);
       border-radius: $border-radius-sm;
       max-height: 200px;
       overflow-y: auto;
@@ -537,19 +537,19 @@ watch(() => props.group, (newGroup) => {
       height: 32px;
       border-radius: 50%;
       margin-right: 8px;
-      border: 1px solid map-get(map-get($colors, light), border);
+      border: 1px solid map.get(map.get($colors, light), border);
       object-fit: cover;
     }
     
     .character-name, .member-name {
       flex: 1;
       font-size: 14px;
-      color: map-get(map-get($colors, light), text-primary);
+      color: map.get(map.get($colors, light), text-primary);
     }
     
     .selection-indicator {
       font-size: 16px;
-      color: map-get(map-get($colors, light), text-muted);
+      color: map.get(map.get($colors, light), text-muted);
     }
     
     .remove-member-btn {
@@ -585,7 +585,7 @@ watch(() => props.group, (newGroup) => {
 }
 
 .btn-primary {
-  background: map-get($colors, primary);
+  background: map.get($colors, primary);
   color: white;
   
   &:hover:not(:disabled) {
@@ -597,8 +597,8 @@ watch(() => props.group, (newGroup) => {
 
 .btn-secondary {
   background: rgba(107, 114, 128, 0.1);
-  color: map-get(map-get($colors, light), text-secondary);
-  border: 1px solid map-get(map-get($colors, light), border);
+  color: map.get(map.get($colors, light), text-secondary);
+  border: 1px solid map.get(map.get($colors, light), border);
   
   &:hover {
     background: rgba(107, 114, 128, 0.2);
