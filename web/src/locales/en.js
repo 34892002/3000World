@@ -1,8 +1,8 @@
 export default {
+    messages: { // 页面通用部分
+        "welcome": "Welcome to this application！"
+    },
     chat: {
-        messages: { // 页面通用部分
-            "welcome": "Welcome to this application！"
-        },
         user: {
             avatar: 'User Avatar',
             online: 'Online',
