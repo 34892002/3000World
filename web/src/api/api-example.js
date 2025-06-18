@@ -1,5 +1,5 @@
 // API使用示例
-import { useApi } from './api.js'
+import { useApi } from '@/utils/api'
 import { ref } from 'vue'
 
 // 在组件中使用API的示例
