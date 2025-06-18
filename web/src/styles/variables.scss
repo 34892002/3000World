@@ -8,6 +8,10 @@
  @use 'sass:color';
  @use 'sass:map';
 
+ // 首页
+ $secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+ $success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+
 // 基础变量
 $primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 $dark-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
@@ -37,6 +41,7 @@ $colors: (
   danger: #ef4444,
   warning: #f59e0b,
   info: #3b82f6,
+  gray: #d6d6d6,
   light: (
     bg-primary: rgba(255, 255, 255, 0.98),
     bg-secondary: rgba(255, 255, 255, 0.9),
@@ -64,7 +69,7 @@ $colors: (
   box-shadow: $shadow-base;
 }
 
-@mixin button-hover($bg-color: rgba(0, 0, 0, 0.1)) {
+@mixin button-hover($bg-color: rgba(71, 85, 105, 0.3)) {
   transition: all $transition-base;
   cursor: pointer;
   

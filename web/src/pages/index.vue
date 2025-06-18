@@ -12,13 +12,13 @@
       <!-- 语言切换按钮 -->
       <div class="language-switcher">
         <button @click="toggleLanguage" class="lang-btn">
-          {{ t('worldSelector.language') }}: {{ currentLanguageLabel }}
+          {{ t('messages.language') }}: {{ currentLanguageLabel }}
         </button>
       </div>
 
       <!-- 应用标题 -->
       <div class="app-header">
-        <h1 class="app-title">{{ t('worldSelector.appTitle') }}</h1>
+        <h1 class="app-title">{{ t('messages.appTitle') }}</h1>
         <p class="app-subtitle">{{ t('worldSelector.subtitle') }}</p>
       </div>
 
@@ -57,7 +57,7 @@
           <div class="world-create-container">
             <input 
               v-model="newWorldName" 
-              :placeholder="t('worldSelector.newWorldPlaceholder')"
+              :placeholder="t('worldSelector.worldName')"
               class="world-input"
               @keyup.enter="createWorld"
             />
@@ -101,7 +101,7 @@
       <div class="footer-info">
         <p class="version-info">{{ t('worldSelector.version') }} 1.0.0</p>
         <div class="social-links">
-          <a href="#" class="social-link">📖 {{ t('worldSelector.docs') }}</a>
+          <a href="#" class="social-link">📖 {{ t('worldSelector.git') }}</a>
           <a href="#" class="social-link">💬 {{ t('worldSelector.community') }}</a>
         </div>
       </div>
@@ -286,48 +286,8 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-// SCSS变量定义
-$primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-$secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-$success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-$dark-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-$font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-$border-radius-lg: 24px;
-$border-radius-md: 16px;
-$border-radius-sm: 12px;
-$transition-base: 0.3s;
-$transition-slow: 0.5s;
-$shadow-base: 0 20px 60px rgba(0, 0, 0, 0.1);
-$shadow-hover: 0 8px 25px rgba(0, 0, 0, 0.15);
-$backdrop-blur: blur(20px);
-
-// 颜色变量
-$colors: (
-  primary: #667eea,
-  secondary: #764ba2,
-  success: #10b981,
-  danger: #ef4444,
-  warning: #f59e0b,
-  info: #3b82f6,
-  light: (
-    bg-primary: rgba(255, 255, 255, 0.95),
-    bg-secondary: rgba(255, 255, 255, 0.8),
-    bg-tertiary: rgba(255, 255, 255, 0.6),
-    text-primary: #111827,
-    text-secondary: #374151,
-    text-muted: #6b7280,
-    border: rgba(0, 0, 0, 0.08)
-  ),
-  dark: (
-    bg-primary: rgba(15, 23, 42, 0.95),
-    bg-secondary: rgba(30, 41, 59, 0.8),
-    bg-tertiary: rgba(30, 41, 59, 0.6),
-    text-primary: #f1f5f9,
-    text-secondary: #e2e8f0,
-    text-muted: #94a3b8,
-    border: rgba(71, 85, 105, 0.3)
-  )
-);
+@use 'sass:map';
+@use '@/styles/variables.scss' as *;
 
 // 混合宏
 @mixin glass-effect($bg-color: rgba(255, 255, 255, 0.95)) {

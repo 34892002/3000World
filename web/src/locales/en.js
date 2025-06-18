@@ -1,6 +1,8 @@
 export default {
     messages: { // 页面通用部分
-        "welcome": "Welcome to this application！"
+        appTitle: '3000World',
+        language: 'Language',
+        welcome: 'Welcome to this application！'
     },
     chat: {
         user: {
@@ -112,7 +114,7 @@ export default {
     worldSelector: {
         subtitle: 'Choose or create a world to start your adventure',
         version: 'Version',
-        documentation: 'View Documentation',
+        git: 'Github',
         community: 'Join Community',
         selectWorld: 'Select World',
         createWorld: 'Create New World',

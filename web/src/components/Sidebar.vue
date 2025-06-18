@@ -1,19 +1,18 @@
 <template>
   <div class="sidebar" :class="{ 'sidebar-mobile-open': sidebarOpen }">
-    <!-- <p class="text-black">{{ activeTab }} {{ filteredPrivateChats }}</p> -->
     <!-- 用户信息头部 -->
     <div class="user-header">
       <div class="user-info">
         <div class="user-avatar">
-          <img :src="userAvatar" :alt="t('chat.user.avatar')" />
+          <img :src="worldInfo.avatar" :alt="t('chat.user.avatar')" />
           <div class="status-indicator online"></div>
         </div>
         <div class="user-details">
-          <h3 class="user-name">{{ userName }}</h3>
-          <p class="user-status">{{ t('chat.user.online') }}</p>
+          <h3 class="user-name">{{ worldInfo.title }}</h3>
+          <p class="user-status text-truncate">{{ worldInfo.description }}</p>
         </div>
       </div>
-      <button class="settings-btn" @click="showSettings = true" :title="t('chat.settings.title')">
+      <button class="settings-btn" @click="emit('open-settings')" :title="t('chat.settings.title')">
         <span class="icon">⚙️</span>
       </button>
     </div>
@@ -32,14 +31,14 @@
     <div class="search-container">
       <div class="search-box">
         <span class="search-icon">🔍</span>
-        <input v-model="props.searchQuery" :placeholder="getSearchPlaceholder()" class="search-input" />
+        <input v-model="searchQuery" :placeholder="getSearchPlaceholder()" class="search-input" />
       </div>
     </div>
 
     <!-- 内容区域 -->
     <div class="sidebar-content">
       <!-- 私聊列表 -->
-      <div v-if="props.activeTab === 'private'" class="content-section">
+      <div v-if="activeTab === 'private'" class="content-section">
         <div class="section-header">
           <h4>{{ t('chat.tabs.private') }}</h4>
           <button class="add-btn" @click="showCreateDialog('private')">
@@ -48,7 +47,7 @@
         </div>
         <div class="chat-list">
           <div v-for="chat in filteredPrivateChats" :key="chat.id"
-            :class="['chat-item', { active: selectedChatId === chat.id && chatType === 'private' }]"
+            :class="['chat-item', { active: currentChat.userId === chat.id && currentChat.chatType === 'private' }]"
             @click="selectChat(chat.id, 'private')">
             <div class="chat-avatar">
               <img :src="chat.avatar" :alt="chat.name" />
@@ -75,7 +74,7 @@
         </div>
         <div class="chat-list">
           <div v-for="chat in filteredGroupChats" :key="chat.id"
-            :class="['chat-item', { active: selectedChatId === chat.id && chatType === 'group' }]"
+            :class="['chat-item', { active: currentChat.userId === chat.id && currentChat.chatType === 'group' }]"
             @click="selectChat(chat.id, 'group')">
             <div class="chat-avatar group-avatar">
               <img :src="chat.avatar" :alt="chat.name" />
@@ -180,31 +179,19 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
-  activeTab: {
-    type: String,
-    default: 'private'
+  currentChat: {
+    type: Object,
+    default: () => ({ userId: null, chatType: '' })
   },
-  searchQuery: {
-    type: String,
-    default: ''
+  worldInfo: {
+    type: Object,
+    default: () => ({})
   },
-  selectedChatId: {
-    type: [String, Number],
-    default: null
+  characters: {
+    type: Array,
+    default: () => []
   },
-  chatType: {
-    type: String,
-    default: 'private'
-  },
-  userName: {
-    type: String,
-    default: '用户名'
-  },
-  userAvatar: {
-    type: String,
-    default: 'https://api.dicebear.com/7.x/avataaars/svg?seed=user'
-  },
-  navTabs: {
+  worldbook: {
     type: Array,
     default: () => []
   },
@@ -216,14 +203,6 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
-  characters: {
-    type: Array,
-    default: () => []
-  },
-  worldbookEntries: {
-    type: Array,
-    default: () => []
-  }
 })
 
 // 组件事件
@@ -242,47 +221,72 @@ const emit = defineEmits([
 ])
 
 // 响应式状态
-const showSettings = ref(false)
-const localSearchQuery = ref(props.searchQuery || '')
-const isLoading = ref(false)
+const searchQuery = ref('')
+const activeTab = ref('private')
 
-// 监听搜索查询变化
-watch(() => props.searchQuery, (newValue) => {
-  localSearchQuery.value = newValue
-})
-
-// 监听本地搜索查询变化并发出事件
-watch(localSearchQuery, (newValue) => {
-  emit('search-change', newValue)
-})
+// 导航标签
+const navTabs = ref([
+  { key: 'private', icon: '💬', label: 'chat.tabs.private', badge: null },
+  { key: 'group', icon: '👥', label: 'chat.tabs.group', badge: null },
+  { key: 'characters', icon: '🎭', label: 'chat.characters.title', badge: null },
+  { key: 'worldbook', icon: '📚', label: 'chat.worldbook.title', badge: null },
+  { key: 'settings', icon: '⚙️', label: 'chat.worldSettings.title', badge: null }
+])
 
 /**
- * 处理设置按钮点击
+ * 获取搜索框占位符
  */
-const handleSettingsClick = () => {
-  showSettings.value = true
-  emit('open-settings')
-}
-
-/**
- * 处理标签页切换
- * @param {string} tabKey - 标签页键值
- */
-const handleTabChange = (tabKey) => {
-  if (tabKey !== props.activeTab) {
-    emit('tab-change', tabKey)
-    // 切换标签页时清空搜索
-    localSearchQuery.value = ''
+const getSearchPlaceholder = () => {
+  const placeholders = {
+    private: t('chat.search.private'),
+    group: t('chat.search.group'),
+    characters: t('chat.search.characters'),
+    worldbook: t('chat.search.worldbook'),
+    settings: t('chat.search.settings')
   }
+  return placeholders[activeTab.value] || t('chat.search.placeholder')
 }
 
+// 计算属性
 /**
- * 处理搜索输入
- * @param {Event} event - 输入事件
+ * 根据搜索查询过滤私聊列表
  */
-const handleSearchInput = (event) => {
-  localSearchQuery.value = event.target.value
-}
+const filteredPrivateChats = computed(() => {
+  if (!searchQuery.value) return props.privateChats
+  return props.privateChats.filter(chat =>
+    chat.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+  )
+})
+
+/**
+ * 根据搜索查询过滤群聊列表
+ */
+const filteredGroupChats = computed(() => {
+  if (!searchQuery.value) return props.groupChats
+  return props.groupChats.filter(chat =>
+    chat.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+  )
+})
+
+/**
+ * 根据搜索查询过滤角色列表
+ */
+const filteredCharacters = computed(() => {
+  if (!searchQuery.value) return props.characters
+  return props.characters.filter(char =>
+    char.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+  )
+})
+
+/**
+ * 根据搜索查询过滤世界设定列表
+ */
+const filteredWorldbook = computed(() => {
+  if (!searchQuery.value) return props.worldbook
+  return props.worldbook.filter(entry =>
+    entry.title.toLowerCase().includes(searchQuery.value.toLowerCase())
+  )
+})
 
 /**
  * 显示创建对话框
@@ -299,7 +303,7 @@ const showCreateDialog = (type) => {
  */
 const selectChat = (chatId, type) => {
   if (chatId && type) {
-    emit('select-chat', { chatId, type })
+    emit('select-chat', chatId, type)
   }
 }
 
@@ -356,72 +360,6 @@ const openApiConfig = () => {
 }
 
 /**
- * 获取搜索框占位符文本
- */
-const getSearchPlaceholder = () => {
-  const placeholders = {
-    private: t('chat.search.private'),
-    group: t('chat.search.group'),
-    characters: t('chat.search.characters'),
-    worldbook: t('chat.search.worldbook'),
-    settings: t('chat.search.settings')
-  }
-  return placeholders[props.activeTab] || t('chat.search.default')
-}
-
-/**
- * 过滤后的私聊列表
- */
-const filteredPrivateChats = computed(() => {
-  if (!localSearchQuery.value) return props.privateChats
-  const query = localSearchQuery.value.toLowerCase().trim()
-  return props.privateChats.filter(chat => {
-    if (!chat || !chat.name) return false
-    return chat.name.toLowerCase().includes(query) ||
-           (chat.lastMessage && chat.lastMessage.toLowerCase().includes(query))
-  })
-})
-
-/**
- * 过滤后的群聊列表
- */
-const filteredGroupChats = computed(() => {
-  if (!localSearchQuery.value) return props.groupChats
-  const query = localSearchQuery.value.toLowerCase().trim()
-  return props.groupChats.filter(chat => {
-    if (!chat || !chat.name) return false
-    return chat.name.toLowerCase().includes(query) ||
-           (chat.lastMessage && chat.lastMessage.toLowerCase().includes(query))
-  })
-})
-
-/**
- * 过滤后的角色列表
- */
-const filteredCharacters = computed(() => {
-  if (!localSearchQuery.value) return props.characters
-  const query = localSearchQuery.value.toLowerCase().trim()
-  return props.characters.filter(character => {
-    if (!character || !character.name) return false
-    return character.name.toLowerCase().includes(query) ||
-           (character.description && character.description.toLowerCase().includes(query))
-  })
-})
-
-/**
- * 过滤后的世界设定条目列表
- */
-const filteredWorldbook = computed(() => {
-  if (!localSearchQuery.value) return props.worldbookEntries
-  const query = localSearchQuery.value.toLowerCase().trim()
-  return props.worldbookEntries.filter(entry => {
-    if (!entry || !entry.title) return false
-    return entry.title.toLowerCase().includes(query) ||
-           (entry.description && entry.description.toLowerCase().includes(query))
-  })
-})
-
-/**
  * 格式化最后一条消息
  * @param {string} message - 消息内容
  * @returns {string} 格式化后的消息
@@ -433,32 +371,23 @@ const formatLastMessage = (message) => {
 }
 
 /**
- * 格式化时间显示
- * @param {string|Date} time - 时间
- * @returns {string} 格式化后的时间字符串
- */
+   * 格式化时间显示
+   * @param {Date} time - 时间对象
+   * @returns {string} 格式化后的时间字符串
+   */
 const formatTime = (time) => {
-  if (!time) return ''
-  
-  try {
-    const now = new Date()
-    const messageTime = new Date(time)
-    
-    // 检查时间是否有效
-    if (isNaN(messageTime.getTime())) return ''
-    
-    const diffInMinutes = Math.floor((now - messageTime) / (1000 * 60))
+  const now = new Date()
+  const diff = now - time
+  const minutes = Math.floor(diff / (1000 * 60))
+  const hours = Math.floor(diff / (1000 * 60 * 60))
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
 
-    if (diffInMinutes < 1) return t('chat.time.justNow')
-    if (diffInMinutes < 60) return t('chat.time.minutesAgo', { minutes: diffInMinutes })
-    if (diffInMinutes < 1440) return t('chat.time.hoursAgo', { hours: Math.floor(diffInMinutes / 60) })
-    
-    // 超过一天显示日期
-    return messageTime.toLocaleDateString()
-  } catch (error) {
-    console.warn('时间格式化错误:', error)
-    return ''
-  }
+  if (minutes < 1) return t('chat.time.now')
+  if (minutes < 60) return t('chat.time.minutes', { count: minutes })
+  if (hours < 24) return t('chat.time.hours', { count: hours })
+  if (days < 7) return t('chat.time.days', { count: days })
+
+  return time.toLocaleDateString()
 }
 
 /**
@@ -497,6 +426,26 @@ const getTabBadgeCount = (tabKey) => {
 
 // 深色主题
 :root.dark-theme {
+
+  // 文本颜色
+  .section-header h4,
+  .chat-name,
+  .character-name,
+  .worldbook-title,
+  .setting-info h5 {
+    color: map.get(map.get($colors, dark), text-primary);
+    @include text-shadow-dark;
+  }
+
+  .chat-preview,
+  .member-count,
+  .character-desc,
+  .worldbook-desc,
+  .setting-info p {
+    color: map.get(map.get($colors, dark), text-secondary);
+    @include text-shadow-dark;
+  }
+
   .sidebar {
     @include glass-effect(map.get(map.get($colors, dark), bg-primary));
     border: 1px solid map.get(map.get($colors, dark), border);
@@ -514,6 +463,78 @@ const getTabBadgeCount = (tabKey) => {
   .user-status {
     color: map.get(map.get($colors, dark), text-secondary);
     @include text-shadow-dark;
+  }
+
+  .search-icon {
+    color: map.get(map.get($colors, dark), text-muted);
+  }
+
+  .search-input {
+    background: map.get(map.get($colors, dark), bg-secondary);
+    border: 1px solid rgba(71, 85, 105, 0.5);
+    color: map.get(map.get($colors, dark), text-primary);
+
+    &::placeholder {
+      color: map.get(map.get($colors, dark), text-muted);
+    }
+
+    &:focus {
+      border-color: map.get($colors, primary);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+    }
+  }
+
+  .chat-item {
+    background: map.get(map.get($colors, dark), bg-tertiary);
+    border: 1px solid map.get(map.get($colors, dark), border);
+
+    &:hover {
+      background: rgba(71, 85, 105, 0.4);
+    }
+  }
+
+  .character-card {
+    background: map.get(map.get($colors, dark), bg-secondary);
+    border: 1px solid map.get(map.get($colors, dark), border);
+
+    &:hover {
+      background: rgba(71, 85, 105, 0.4);
+    }
+  }
+
+  .worldbook-item {
+    background: map.get(map.get($colors, dark), bg-secondary);
+    border: 1px solid map.get(map.get($colors, dark), border);
+
+    &:hover {
+      background: rgba(71, 85, 105, 0.4);
+    }
+  }
+
+  .worldbook-icon {
+    color: map.get(map.get($colors, dark), text-secondary);
+  }
+
+  .chat-time {
+    color: #94a3b8;
+  }
+
+  // 导航标签
+  .tab-label {
+    color: map.get(map.get($colors, dark), text-secondary);
+  }
+
+  .setting-item {
+    background: map.get(map.get($colors, dark), bg-secondary);
+    border: 1px solid map.get(map.get($colors, dark), border);
+
+    &:hover {
+      background: rgba(71, 85, 105, 0.4);
+    }
+  }
+
+  .setting-icon {
+    color: map.get(map.get($colors, dark), text-secondary);
   }
 }
 
@@ -607,6 +628,7 @@ const getTabBadgeCount = (tabKey) => {
     color: map.get(map.get($colors, light), text-secondary);
     margin: 0;
     @include text-shadow-light;
+    max-width: 12em;
   }
 
   .settings-btn {
@@ -643,8 +665,8 @@ const getTabBadgeCount = (tabKey) => {
     position: relative;
 
     .nav-tab:hover {
-    background: rgba(71, 85, 105, 0.3);
-  }
+      background: rgba(71, 85, 105, 0.3);
+    }
 
     &:hover {
       background: rgba(102, 126, 234, 0.1);
@@ -709,10 +731,316 @@ const getTabBadgeCount = (tabKey) => {
     font-size: 14px;
     outline: none;
     transition: all $transition-base;
+    color: map.get(map.get($colors, light), text-primary);
 
     &:focus {
       border-color: map.get($colors, primary);
       box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+  }
+
+  .content-section {
+    margin-bottom: 24px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+
+    h4 {
+      font-size: 16px;
+      font-weight: 600;
+      color: map.get(map.get($colors, light), text-primary);
+      margin: 0;
+      @include text-shadow-light;
+    }
+  }
+
+  .add-btn {
+    background: $primary-gradient;
+    border: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform $transition-base;
+    font-size: 13px;
+
+    &:hover {
+      transform: scale(1.1);
+    }
+  }
+
+  // 聊天列表
+  .chat-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .chat-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: $border-radius-md;
+    cursor: pointer;
+    transition: all $transition-base;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    color: map.get(map.get($colors, light), text-secondary);
+
+    &:hover {
+      background: rgba(102, 126, 234, 0.1);
+      transform: translateY(-1px);
+    }
+
+    &.active {
+      background: $primary-gradient;
+      color: white;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+  }
+
+  .chat-avatar {
+    position: relative;
+    flex-shrink: 0;
+
+    img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+    }
+  }
+
+  .group-avatar,
+  .chat-avatar {
+    img {
+      border: 1px solid map.get($colors, gray);
+    }
+  }
+
+  .unread-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: map.get($colors, danger);
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    min-width: 16px;
+    text-align: center;
+  }
+
+  .chat-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .chat-name {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .chat-preview {
+    font-size: 12px;
+    opacity: 0.8;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .member-count {
+    font-size: 11px;
+    opacity: 0.7;
+    color: map.get(map.get($colors, light), text-secondary);
+  }
+
+  .chat-meta {
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .chat-time {
+    font-size: 11px;
+    opacity: 0.7;
+  }
+
+  // 角色网格
+  .character-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+  }
+
+  .character-card {
+    @include card-style;
+    padding: 16px;
+    text-align: center;
+    cursor: pointer;
+    position: relative;
+
+    &:hover {
+      transform: translateY(-2px);
+
+      .character-actions {
+        opacity: 1;
+      }
+    }
+  }
+
+  .character-avatar {
+    img {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      margin-bottom: 8px;
+      border: 1px solid map.get($colors, gray);
+    }
+  }
+
+  .character-name {
+    font-size: 12px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+    color: map.get(map.get($colors, light), text-primary);
+    @include text-shadow-light;
+  }
+
+  .character-desc {
+    font-size: 10px;
+    margin: 0;
+    color: map.get(map.get($colors, light), text-secondary);
+    @include text-shadow-light;
+  }
+
+  .character-actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+
+    .edit-btn,
+    .delete-btn {
+      width: 24px;
+      height: 24px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.9);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      transition: all 0.2s ease;
+
+      &:hover {
+        transform: scale(1.1);
+      }
+    }
+
+    .edit-btn:hover {
+      background: rgba(59, 130, 246, 0.9);
+      color: white;
+    }
+
+    .delete-btn:hover {
+      background: rgba(239, 68, 68, 0.9);
+      color: white;
+    }
+  }
+
+  // 世界设定列表
+  .worldbook-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .worldbook-item {
+    @include card-style;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    cursor: pointer;
+  }
+
+  .worldbook-icon {
+    font-size: 20px;
+    color: map.get(map.get($colors, light), text-primary);
+  }
+
+  .worldbook-info {
+    flex: 1;
+  }
+
+  .worldbook-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+    color: map.get(map.get($colors, light), text-primary);
+    @include text-shadow-light;
+  }
+
+  .worldbook-desc {
+    font-size: 12px;
+    margin: 0;
+    color: map.get(map.get($colors, light), text-secondary);
+    @include text-shadow-light;
+  }
+
+  // 设置列表
+  .settings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .setting-item {
+    @include card-style;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    cursor: pointer;
+  }
+
+  .setting-icon {
+    font-size: 20px;
+    color: map.get(map.get($colors, light), text-primary);
+  }
+
+  .setting-info {
+    flex: 1;
+
+    h5 {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 0 0 4px 0;
+      color: map.get(map.get($colors, light), text-primary);
+      @include text-shadow-light;
+    }
+
+    p {
+      font-size: 12px;
+      margin: 0;
+      color: map.get(map.get($colors, light), text-secondary);
+      @include text-shadow-light;
     }
   }
 }
