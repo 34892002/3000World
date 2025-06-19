@@ -115,8 +115,16 @@ export default {
             title: 'World Settings',
             config: 'World Configuration',
             configDesc: 'Manage general settings for the current world.',
-            api: 'API Configuration',
-            apiDesc: 'Configure API keys and endpoints for integrations.'
+            model: {
+                title: 'Model Configuration',
+                desc: 'Configure Model API keys and endpoints for integrations.',
+                apiKey: 'API Key',
+                apiUrl: 'API URL',
+                model: 'Model',
+                apiKeyPlaceholder: 'Enter API key',
+                apiUrlPlaceholder: 'Enter API URL',
+                modelPlaceholder: 'Enter model name',
+            }
         },
         empty: {
             title: 'Select a chat to start messaging',

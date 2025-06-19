@@ -14,6 +14,7 @@
       </div>
       <button class="settings-btn" @click="emit('open-settings')" :title="t('chat.settings.title')">
         <span class="icon">⚙️</span>
+        <!-- <v-icon icon="mdi-cog" /> -->
       </button>
     </div>
 
@@ -158,18 +159,18 @@
           <h4>{{ t('chat.worldSettings.title') }}</h4>
         </div>
         <div class="settings-list">
-          <div class="setting-item" @click="openWorldConfig">
+          <!-- <div class="setting-item" @click="openWorldConfig">
             <div class="setting-icon">🌍</div>
             <div class="setting-info">
               <h5>{{ t('chat.worldSettings.config') }}</h5>
               <p>{{ t('chat.worldSettings.configDesc') }}</p>
             </div>
-          </div>
+          </div> -->
           <div class="setting-item" @click="openApiConfig">
             <div class="setting-icon">🔧</div>
             <div class="setting-info">
-              <h5>{{ t('chat.worldSettings.api') }}</h5>
-              <p>{{ t('chat.worldSettings.apiDesc') }}</p>
+              <h5>{{ t('chat.worldSettings.model.title') }}</h5>
+              <p>{{ t('chat.worldSettings.model.desc') }}</p>
             </div>
           </div>
         </div>
@@ -670,6 +671,7 @@ const getTabBadgeCount = (tabKey) => {
     border: none;
     padding: 8px;
     border-radius: 50%;
+    color: map.get(map.get($colors, light), text-secondary);
 
     &:hover {
       background: rgba(71, 85, 105, 0.3);

@@ -7,7 +7,8 @@
     <Sidebar :sidebarOpen="sidebarOpen" :currentChat="currentChat" :worldInfo="worldInfo" :characters="characters"
       :worldbook="worldbook" :privateChats="privateChats" @select-chat="selectChat" :groupChats="groupChats"
       @open-settings="showSettings = true" @create-dialog="showCreateDialog"
-      @select-worldbook-entry="selectWorldbookEntry" @toggle-player-character="togglePlayerCharacter" />
+      @select-worldbook-entry="selectWorldbookEntry" @toggle-player-character="togglePlayerCharacter" 
+      @open-api-config="openApiConfig" />
 
     <!-- 主聊天区域 -->
     <ChatArea :isMobile="isMobile" :currentChat="currentChat" :privateChats="privateChats" :groupChats="groupChats"
@@ -29,6 +30,9 @@
     <WorldbookEditor :visible="showWorldbookEditor" :worldbook="editingWorldbook" 
       @close="closeWorldbookEditor" @saved="saveWorldbookEntry" @deleted="deleteWorldbookEntry" />
 
+    <!-- API配置对话框 -->
+    <ApiConfigDialog :visible="showApiConfig" :config="config" 
+      @close="closeApiConfig" @save="saveApiConfig" />
 
   </div>
 </template>
@@ -46,6 +50,7 @@ import GroupEditor from '@/components/GroupEditor.vue'
 import CharacterEditor from '@/components/CharacterEditor.vue'
 import SettingsDialog from '@/components/SettingsDialog.vue'
 import WorldbookEditor from '@/components/WorldbookEditor.vue'
+import ApiConfigDialog from '@/components/ApiConfigDialog.vue'
 
 // 国际化和路由
 const { t, locale } = useI18n()
@@ -65,6 +70,7 @@ const {
   saveCharacter: dbSaveCharacter,
   deleteCharacter: dbDeleteCharacter,
   saveGroup: dbSaveGroup,
+  saveConfig,
   refresh: refreshData,
 } = useDatabase()
 
@@ -77,6 +83,7 @@ const { isLoading: aiLoading, cleanAIResponse, getAIResponse } = useAIApi()
 // 响应式数据
 const sidebarOpen = ref(false)
 const showSettings = ref(false)
+const showApiConfig = ref(false)
 const messagesContainer = ref(null)
 const isMobile = ref(false)
 const currentChat = ref({ userId: null, chatType: '' })
@@ -796,6 +803,38 @@ const changeLanguage = (newLanguage) => {
       'en': 'en'
     }
     locale.value = localeMap[newLanguage] || newLanguage
+  }
+}
+
+/**
+ * 打开 API 配置对话框
+ */
+const openApiConfig = () => {
+  showApiConfig.value = true
+}
+
+/**
+ * 关闭 API 配置对话框
+ */
+const closeApiConfig = () => {
+  showApiConfig.value = false
+}
+
+/**
+ * 保存 API 配置
+ * @param {Object} configData - API 配置数据
+ */
+const saveApiConfig = async (configData) => {
+  try {
+    await saveConfig(configData)
+    showApiConfig.value = false
+    
+    // 刷新数据以确保UI更新
+    await refreshData()
+    
+    console.log('API配置保存成功')
+  } catch (error) {
+    console.error('保存API配置失败:', error)
   }
 }
 

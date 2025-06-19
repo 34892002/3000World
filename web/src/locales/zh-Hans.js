@@ -115,8 +115,16 @@ export default {
             title: '世界设置',
             config: '世界配置',
             configDesc: '管理当前世界的基础设定。',
-            api: 'API 配置',
-            apiDesc: '配置 API 密钥和集成端点。'
+            model: {
+                title: '模型配置',
+                desc: '配置模型 API 密钥和集成端点。',
+                apiKey: 'API 密钥',
+                apiUrl: 'API 地址',
+                model: '模型',
+                apiKeyPlaceholder: '请输入 API 密钥',
+                apiUrlPlaceholder: '请输入 API 地址',
+                modelPlaceholder: '请输入模型名称',
+            }
         },
         empty: {
             title: '选择一个聊天开始发送消息',
