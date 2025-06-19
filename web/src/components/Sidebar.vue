@@ -110,8 +110,7 @@
           </button>
         </div>
         <div class="character-grid">
-          <div v-for="character in filteredCharacters" :key="character.id" class="character-card"
-            @click="selectCharacter(character.id)">
+          <div v-for="character in filteredCharacters" :key="character.id" class="character-card">
             <div class="character-avatar">
               <img :src="character.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${character.name}`" :alt="character.name" />
               <!-- 主角皇冠标识 -->

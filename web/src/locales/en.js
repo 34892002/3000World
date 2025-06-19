@@ -77,6 +77,8 @@ export default {
             isPublicHelp: 'Allow other users to use this character',
             allowEdit: 'Allow Editing',
             allowEditHelp: 'Allow other users to modify this character',
+            isPlayer: 'Set as Main Character',
+            isPlayerHelp: 'User will chat as this character (only one main character allowed)',
             deleteConfirm: 'Are you sure you want to delete this character?',
             deleteSuccess: 'Character deleted successfully',
             deleteError: 'Failed to delete character',

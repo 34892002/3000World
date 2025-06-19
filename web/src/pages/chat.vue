@@ -8,7 +8,8 @@
       :worldbook="worldbook" :privateChats="privateChats" @select-chat="selectChat" :groupChats="groupChats"
       @open-settings="showSettings = true" @create-dialog="showCreateDialog"
       @select-worldbook-entry="selectWorldbookEntry" @toggle-player-character="togglePlayerCharacter" 
-      @open-api-config="openApiConfig" @edit-group="editGroup" @delete-group="deleteGroup" />
+      @open-api-config="openApiConfig" @edit-group="editGroup" @delete-group="deleteGroup"
+      @open-character-editor="openCharacterEditor" @select-character="selectCharacter" @delete-character="deleteCharacter" />
 
     <!-- 主聊天区域 -->
     <ChatArea :isMobile="isMobile" :currentChat="currentChat" :privateChats="privateChats" :groupChats="groupChats"
@@ -30,7 +31,7 @@
     <WorldbookEditor :visible="showWorldbookEditor" :worldbook="editingWorldbook" 
       @close="closeWorldbookEditor" @saved="saveWorldbookEntry" @deleted="deleteWorldbookEntry" />
 
-    <!-- API配置对话框 -->
+    <!-- Model配置对话框 -->
     <ModelConfigDialog :visible="showApiConfig" :config="config" 
       @close="closeApiConfig" @save="saveApiConfig" />
 
@@ -156,6 +157,15 @@ const selectChat = async (chatId, type) => {
   if (isMobile.value) {
     sidebarOpen.value = false
   }
+}
+
+/**
+ * 选择角色（开始私聊）
+ * @param {number} characterId - 角色ID
+ */
+const selectCharacter = async (characterId) => {
+  // 选择角色相当于选择与该角色的私聊
+  await selectChat(characterId, 'private')
 }
 
 /**
@@ -700,12 +710,19 @@ const saveCharacter = async (characterData) => {
   const processedData = {
     name: characterData.name.trim(),
     description: characterData.description || '',
+    persona: characterData.persona || '',
+    greeting: characterData.greeting || '',
     personality: characterData.personality || '',
     background: characterData.background || '',
     isPublic: characterData.isPublic || false,
     allowEdit: characterData.allowEdit || false,
-    avatar: characterData.avatar,
-    id: characterData.id
+    isPlayer: characterData.isPlayer || false,
+    avatar: characterData.avatar
+  }
+
+  // 只有在编辑现有角色时才添加id字段
+  if (characterData.id) {
+    processedData.id = characterData.id
   }
 
   try {

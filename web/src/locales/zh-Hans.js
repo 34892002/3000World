@@ -77,6 +77,8 @@ export default {
             isPublicHelp: '允许其他用户使用此角色',
             allowEdit: '允许编辑',
             allowEditHelp: '允许其他用户修改此角色',
+            isPlayer: '设为主角',
+            isPlayerHelp: '用户将以此角色身份进行对话（同时只能有一个主角）',
             deleteConfirm: '确定要删除这个角色吗？',
             deleteSuccess: '角色删除成功',
             deleteError: '删除角色失败',

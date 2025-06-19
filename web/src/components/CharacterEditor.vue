@@ -3,7 +3,7 @@
   <div v-if="visible" class="modal-overlay" @click="closeModal">
     <div class="modal-content" @click.stop>
       <div class="modal-header">
-        <h3>{{ editingCharacter ? t('chat.characters.editTitle') : t('chat.characters.createTitle') }}</h3>
+        <h3>{{ character ? t('chat.characters.editTitle') : t('chat.characters.createTitle') }}</h3>
         <button class="close-btn" @click="closeModal">×</button>
       </div>
       <div class="modal-body">
@@ -46,7 +46,7 @@
                 v-model="formData.persona"
                 :placeholder="t('chat.characters.personaPlaceholder')"
                 class="form-textarea"
-                rows="8"
+                rows="4"
                 required
               ></textarea>
             </div>
@@ -56,14 +56,14 @@
                 v-model="formData.greeting"
                 :placeholder="t('chat.characters.greetingPlaceholder')"
                 class="form-textarea"
-                rows="4"
+                rows="1"
                 required
               ></textarea>
             </div>
           </div>
 
           <!-- 性格特征 -->
-          <div class="form-section">
+          <!-- <div class="form-section">
             <h4>{{ t('chat.characters.personalityTitle') }}</h4>
             
             <div class="form-group">
@@ -87,28 +87,37 @@
                 rows="4"
               ></textarea>
             </div>
-          </div>
+          </div> -->
 
           <!-- 角色设置 -->
           <div class="form-section">
             <h4>{{ t('chat.characters.settingsTitle') }}</h4>
             
-            <div class="form-group">
+            <!-- <div class="form-group">
               <label class="checkbox-label">
                 <input type="checkbox" v-model="formData.isPublic" />
                 <span class="checkbox"></span>
                 {{ t('chat.characters.isPublic') }}
               </label>
               <p class="help-text">{{ t('chat.characters.isPublicHelp') }}</p>
-            </div>
+            </div> -->
             
-            <div class="form-group">
+            <!-- <div class="form-group">
               <label class="checkbox-label">
                 <input type="checkbox" v-model="formData.allowEdit" />
                 <span class="checkbox"></span>
                 {{ t('chat.characters.allowEdit') }}
               </label>
               <p class="help-text">{{ t('chat.characters.allowEditHelp') }}</p>
+            </div> -->
+            
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" v-model="formData.isPlayer" />
+                <span class="checkbox"></span>
+                {{ t('chat.characters.isPlayer') }}
+              </label>
+              <p class="help-text">{{ t('chat.characters.isPlayerHelp') }}</p>
             </div>
           </div>
         </form>
@@ -123,7 +132,7 @@
           {{ t('chat.common.save') }}
         </button>
         <button 
-          v-if="editingCharacter" 
+          v-if="character" 
           class="btn-danger" 
           @click="deleteCharacter"
         >
@@ -147,7 +156,7 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
-  editingCharacter: {
+  character: {
     type: Object,
     default: null
   }
@@ -168,13 +177,15 @@ const form = ref({
 
 const formData = ref({
   name: '',
+  description: '',
   avatar: '',
   persona: '',
   greeting: '',
   personality: '',
   background: '',
   isPublic: false,
-  allowEdit: false
+  allowEdit: false,
+  isPlayer: false
 })
 
 // 计算属性
@@ -182,7 +193,7 @@ const formData = ref({
  * 是否为编辑模式
  */
 const isEditing = computed(() => {
-  return props.editingCharacter && props.editingCharacter.id
+  return props.character && props.character.id
 })
 
 /**
@@ -215,7 +226,8 @@ const initFormData = (character = null) => {
       personality: character.personality || '',
       background: character.background || '',
       isPublic: character.isPublic || false,
-      allowEdit: character.allowEdit || false
+      allowEdit: character.allowEdit || false,
+      isPlayer: character.isPlayer || false
     }
   } else {
     form.value = {
@@ -234,7 +246,8 @@ const initFormData = (character = null) => {
       personality: '',
       background: '',
       isPublic: false,
-      allowEdit: false
+      allowEdit: false,
+      isPlayer: false
     }
   }
 }
@@ -274,9 +287,16 @@ const deleteCharacter = () => {
 // 监听器
 watch(() => props.visible, (newVisible) => {
   if (newVisible) {
-    initFormData(props.editingCharacter)
+    initFormData(props.character)
   }
 })
+
+// 监听character属性变化
+watch(() => props.character, (newCharacter) => {
+  if (props.visible) {
+    initFormData(newCharacter)
+  }
+}, { deep: true })
 </script>
 
 <style lang="scss" scoped>
@@ -397,6 +417,7 @@ watch(() => props.visible, (newVisible) => {
     outline: none;
     transition: all $transition-base;
     background: rgba(255, 255, 255, 0.8);
+    color: map.get(map.get($colors, light), text-secondary);
     
     &:focus {
       border-color: map.get($colors, primary);
@@ -411,7 +432,7 @@ watch(() => props.visible, (newVisible) => {
   
   .form-textarea {
     resize: vertical;
-    min-height: 80px;
+    min-height: 50px;
   }
   
   .avatar-input-group {
@@ -488,6 +509,7 @@ watch(() => props.visible, (newVisible) => {
     color: rgba(255, 255, 255, 0.6);
     margin: 0;
     font-style: italic;
+    color: map.get(map.get($colors, light), text-muted);
   }
 }
 
