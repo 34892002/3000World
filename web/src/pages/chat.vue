@@ -886,7 +886,7 @@ const initializeDatabase = async () => {
       if (privateChats.value.length > 0) {
         await selectChat(privateChats.value[0].id, 'private')
       }
-      
+
       console.log('初始化完成后 worldConfig:', worldConfig.value)
     } else {
       console.error('连接数据库失败')

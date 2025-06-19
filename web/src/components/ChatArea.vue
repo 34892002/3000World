@@ -22,15 +22,15 @@
     <div class="chat-container">
       <!-- 桌面端聊天头部 -->
       <div v-if="!isMobile && selectedChat" class="chat-header">
-        <div class="chat-header-info">
+        <div class="chat-header-info w-50">
           <img v-if="currentChat.chatType === 'group'" :src="selectedChat.avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${selectedChat.name}`" :alt="selectedChat.name" class="chat-header-avatar" />
           <img v-else :src="selectedChat.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedChat.name}`" :alt="selectedChat.name" class="chat-header-avatar" />
-          <div class="chat-header-details">
+          <div class="chat-header-details w-100">
             <h2>{{ selectedChat.name }}</h2>
             <p v-if="currentChat.chatType === 'group'" class="member-info">
               {{ selectedChat.memberCount }} {{ t('chat.group.membersLabel') }}
             </p>
-            <p v-else class="status-info">纯真的牧马人，带着梦想...</p>
+            <p v-else class="status-info text-truncate">{{ currentUser.persona }}</p>
           </div>
         </div>
         <div class="chat-header-actions">
@@ -167,6 +167,11 @@ const fileInput = ref(null)
 const showMentionSuggestions = ref(false)
 const mentionStartIndex = ref(-1)
 const filteredSuggestions = ref([])
+
+const currentUser = computed(() => {
+  const userId = props.currentChat.userId
+  return props.characters.find(character => character.id === userId)
+})
 
 /**
  * 是否可以发送消息
