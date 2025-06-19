@@ -22,4 +22,22 @@ html {
     -webkit-line-clamp: 3;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
+}
+
+// 滚动条样式
+::-webkit-scrollbar {
+    width: 6px;
+
+    &-track {
+        background: transparent;
+    }
+
+    &-thumb {
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 3px;
+
+        &:hover {
+            background: rgba(0, 0, 0, 0.3);
+        }
+    }
+}

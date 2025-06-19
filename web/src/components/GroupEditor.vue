@@ -13,36 +13,8 @@
             <h4>{{ t('chat.group.basicInfo') }}</h4>
             <div class="form-group">
               <label>{{ t('chat.group.nameLabel') }}</label>
-              <input 
-                v-model="formData.name"
-                type="text" 
-                :placeholder="t('chat.group.namePlaceholder')"
-                class="form-input"
-                required
-              />
-            </div>
-            <div class="form-group">
-              <label>{{ t('chat.group.descriptionLabel') }}</label>
-              <textarea 
-                v-model="formData.description"
-                :placeholder="t('chat.group.descriptionPlaceholder')"
-                class="form-textarea"
-                rows="3"
-              ></textarea>
-            </div>
-            <div class="form-group">
-              <label>{{ t('chat.group.avatarLabel') }}</label>
-              <div class="avatar-input-group">
-                <input 
-                  v-model="formData.avatar"
-                  type="url" 
-                  :placeholder="t('chat.group.avatarPlaceholder')"
-                  class="form-input"
-                />
-                <div class="avatar-preview">
-                  <img :src="formData.avatar || 'https://api.dicebear.com/7.x/identicon/svg?seed=group'" :alt="formData.name" />
-                </div>
-              </div>
+              <input v-model="formData.name" type="text" :placeholder="t('chat.group.namePlaceholder')"
+                class="form-input" required />
             </div>
           </div>
 
@@ -53,34 +25,23 @@
               <div class="available-characters">
                 <h5>{{ t('chat.group.availableCharacters') }}</h5>
                 <div class="character-list">
-                  <div 
-                    v-for="character in availableCharacters" 
-                    :key="character.id"
-                    class="character-item"
-                    @click="toggleCharacterSelection(character)"
-                    :class="{ selected: isCharacterSelected(character.id) }"
-                  >
-                    <img :src="character.avatar" :alt="character.name" class="character-avatar" />
+                  <div v-for="character in availableCharacters" :key="character.id" class="character-item" :class="{ selected: isCharacterSelected(character.id) }" @click="toggleCharacterSelection(character)">
+                    <!-- Checkbox removed as selection indicator is sufficient -->
+                    <img :src="character.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${character.name}`" 
+                         :alt="character.name" class="character-avatar" />
                     <span class="character-name">{{ character.name }}</span>
-                    <span class="selection-indicator">{{ isCharacterSelected(character.id) ? '✓' : '+' }}</span>
+                    <span v-if="isCharacterSelected(character.id)" class="selection-indicator">✓</span>
                   </div>
                 </div>
               </div>
               <div class="selected-members">
-                <h5>{{ t('chat.group.selectedMembers') }} ({{ formData.members.length }})</h5>
+                <h5>{{ t('chat.group.selectedMembers') }} ({{ formData.characterIds.length }})</h5>
                 <div class="member-list">
-                  <div 
-                    v-for="member in selectedMembers" 
-                    :key="member.id"
-                    class="member-item"
-                  >
-                    <img :src="member.avatar" :alt="member.name" class="member-avatar" />
+                  <div v-for="member in selectedMembers" :key="member.id" class="member-item">
+                    <img :src="member.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${member.name}`" 
+                         :alt="member.name" class="member-avatar" />
                     <span class="member-name">{{ member.name }}</span>
-                    <button 
-                      type="button"
-                      class="remove-member-btn"
-                      @click="removeMember(member.id)"
-                    >
+                    <button type="button" class="remove-member-btn" @click="removeMember(member.id)">
                       ✕
                     </button>
                   </div>
@@ -89,24 +50,7 @@
             </div>
           </div>
 
-          <!-- 群组设置 -->
-          <div class="form-section">
-            <h4>{{ t('chat.group.settingsTitle') }}</h4>
-            <div class="form-group">
-              <label class="checkbox-label">
-                <input type="checkbox" v-model="formData.isPrivate" />
-                <span class="checkbox"></span>
-                {{ t('chat.group.privateGroup') }}
-              </label>
-            </div>
-            <div class="form-group">
-              <label class="checkbox-label">
-                <input type="checkbox" v-model="formData.allowInvites" />
-                <span class="checkbox"></span>
-                {{ t('chat.group.allowInvites') }}
-              </label>
-            </div>
-          </div>
+
         </form>
       </div>
       <div class="modal-footer">
@@ -150,11 +94,7 @@ const emit = defineEmits(['close', 'save'])
 const formData = ref({
   id: null,
   name: '',
-  description: '',
-  avatar: '',
-  members: [],
-  isPrivate: false,
-  allowInvites: true
+  characterIds: [] // 改为 characterIds 以匹配 index.html 的数据结构
 })
 
 // 计算属性
@@ -171,8 +111,8 @@ const availableCharacters = computed(() => {
  * 获取已选成员列表
  */
 const selectedMembers = computed(() => {
-  return availableCharacters.value.filter(character => 
-    formData.value.members.includes(character.id)
+  return availableCharacters.value.filter(character =>
+    formData.value.characterIds.includes(character.id)
   )
 })
 
@@ -180,7 +120,7 @@ const selectedMembers = computed(() => {
  * 检查是否可以保存
  */
 const canSave = computed(() => {
-  return formData.value.name.trim().length > 0
+  return formData.value.name.trim().length > 0 && formData.value.characterIds.length >= 1
 })
 
 // 方法
@@ -193,21 +133,13 @@ const initFormData = (group = null) => {
     formData.value = {
       id: group.id,
       name: group.name || '',
-      description: group.description || '',
-      avatar: group.avatar || '',
-      members: [...(group.members || [])],
-      isPrivate: group.isPrivate || false,
-      allowInvites: group.allowInvites !== false
+      characterIds: [...(group.characterIds || [])]
     }
   } else {
     formData.value = {
       id: null,
       name: '',
-      description: '',
-      avatar: '',
-      members: [],
-      isPrivate: false,
-      allowInvites: true
+      characterIds: []
     }
   }
 }
@@ -216,11 +148,11 @@ const initFormData = (group = null) => {
  * 切换角色选择状态
  */
 const toggleCharacterSelection = (character) => {
-  const index = formData.value.members.indexOf(character.id)
+  const index = formData.value.characterIds.indexOf(character.id)
   if (index > -1) {
-    formData.value.members.splice(index, 1)
+    formData.value.characterIds.splice(index, 1)
   } else {
-    formData.value.members.push(character.id)
+    formData.value.characterIds.push(character.id)
   }
 }
 
@@ -228,16 +160,16 @@ const toggleCharacterSelection = (character) => {
  * 检查角色是否已选择
  */
 const isCharacterSelected = (characterId) => {
-  return formData.value.members.includes(characterId)
+  return formData.value.characterIds.includes(characterId)
 }
 
 /**
  * 移除成员
  */
 const removeMember = (memberId) => {
-  const index = formData.value.members.indexOf(memberId)
+  const index = formData.value.characterIds.indexOf(memberId)
   if (index > -1) {
-    formData.value.members.splice(index, 1)
+    formData.value.characterIds.splice(index, 1)
   }
 }
 
@@ -259,11 +191,31 @@ const handleOverlayClick = () => {
  * 处理保存事件
  */
 const handleSave = () => {
-  if (!canSave.value) {
+  // 验证群组名称
+  const name = formData.value.name.trim()
+  if (!name) {
+    // 可以添加错误提示
     return
   }
-  
-  emit('save', { ...formData.value })
+
+  // 验证至少选择一个角色
+  if (formData.value.characterIds.length < 1) {
+    // 可以添加错误提示
+    return
+  }
+
+  // 准备保存数据，只包含必要字段
+  const saveData = {
+    name: name,
+    characterIds: [...formData.value.characterIds]
+  }
+
+  // 如果是编辑模式，包含 id
+  if (formData.value.id) {
+    saveData.id = formData.value.id
+  }
+
+  emit('save', saveData)
 }
 
 // 监听器
@@ -316,7 +268,7 @@ watch(() => props.group, (newGroup) => {
   justify-content: space-between;
   padding: 20px;
   border-bottom: 1px solid map.get(map.get($colors, light), border);
-  
+
   h3 {
     font-size: 18px;
     font-weight: 600;
@@ -335,7 +287,7 @@ watch(() => props.group, (newGroup) => {
   color: map.get(map.get($colors, light), text-secondary);
   border-radius: 4px;
   transition: all $transition-base;
-  
+
   &:hover {
     background: rgba(0, 0, 0, 0.1);
     color: map.get(map.get($colors, light), text-primary);
@@ -362,12 +314,12 @@ watch(() => props.group, (newGroup) => {
     margin-bottom: 24px;
     padding-bottom: 20px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-    
+
     &:last-child {
       border-bottom: none;
       margin-bottom: 0;
     }
-    
+
     h4 {
       font-size: 16px;
       font-weight: 600;
@@ -375,7 +327,7 @@ watch(() => props.group, (newGroup) => {
       color: map.get(map.get($colors, light), text-primary);
       text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
     }
-    
+
     h5 {
       font-size: 14px;
       font-weight: 500;
@@ -383,10 +335,10 @@ watch(() => props.group, (newGroup) => {
       color: map.get(map.get($colors, light), text-secondary);
     }
   }
-  
+
   .form-group {
     margin-bottom: 16px;
-    
+
     label {
       display: block;
       font-size: 14px;
@@ -395,8 +347,8 @@ watch(() => props.group, (newGroup) => {
       color: map.get(map.get($colors, light), text-secondary);
     }
   }
-  
-  .form-input, .form-textarea {
+
+  .form-input {
     width: 100%;
     padding: 10px 12px;
     border: 1px solid map.get(map.get($colors, light), border);
@@ -405,171 +357,167 @@ watch(() => props.group, (newGroup) => {
     outline: none;
     transition: all $transition-base;
     background: rgba(255, 255, 255, 0.8);
-    
+    color: map.get(map.get($colors, light), text-secondary);
+
     &:focus {
       border-color: map.get($colors, primary);
       box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
       background: rgba(255, 255, 255, 0.95);
     }
-    
+
     &::placeholder {
       color: map.get(map.get($colors, light), text-muted);
     }
   }
-  
-  .form-textarea {
-    resize: vertical;
-    min-height: 80px;
-  }
-  
-  .avatar-input-group {
-    display: flex;
-    gap: 12px;
-    align-items: flex-start;
-    
-    .form-input {
-      flex: 1;
-    }
-  }
-  
-  .avatar-preview {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    overflow: hidden;
-    border: 2px solid map.get(map.get($colors, light), border);
-    flex-shrink: 0;
-    
-    img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-  }
-  
-  .checkbox-label {
-    display: flex !important;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    font-size: 14px;
-    color: map.get(map.get($colors, light), text-secondary);
-    
-    input[type="checkbox"] {
-      display: none;
-    }
-    
-    .checkbox {
-      width: 18px;
-      height: 18px;
-      border: 2px solid map.get(map.get($colors, light), border);
-      border-radius: 3px;
-      position: relative;
-      transition: all $transition-base;
-      background: rgba(255, 255, 255, 0.8);
-      
-      &::after {
-        content: '✓';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        color: white;
-        font-size: 12px;
-        opacity: 0;
-        transition: opacity $transition-base;
-      }
-    }
-    
-    input[type="checkbox"]:checked + .checkbox {
-      background: map.get($colors, primary);
-      border-color: map.get($colors, primary);
-      
-      &::after {
-        opacity: 1;
-      }
-    }
-  }
+
+
 }
 
 // 成员选择器
 .members-selector {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  
+  gap: 24px;
+
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
   }
-  
-  .available-characters, .selected-members {
-    .character-list, .member-list {
+
+  .available-characters,
+  .selected-members {
+    h5 {
+      margin: 0 0 12px 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: map.get(map.get($colors, light), text-primary);
+    }
+
+    .character-list,
+    .member-list {
       border: 1px solid map.get(map.get($colors, light), border);
-      border-radius: $border-radius-sm;
-      max-height: 200px;
+      border-radius: $border-radius-md;
+      max-height: 240px;
       overflow-y: auto;
-      background: rgba(255, 255, 255, 0.5);
+      background: rgba(255, 255, 255, 0.8);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     }
   }
-  
-  .character-item, .member-item {
+
+  .character-item,
+  .member-item {
     display: flex;
     align-items: center;
-    padding: 8px 12px;
+    padding: 12px 16px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);
     cursor: pointer;
     transition: background-color $transition-base;
-    
+    position: relative;
+    overflow: hidden;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+
     &:last-child {
       border-bottom: none;
     }
-    
+
     &:hover {
-      background: rgba(0, 0, 0, 0.05);
+      background: rgba(102, 126, 234, 0.05);
     }
-    
+
     &.selected {
       background: rgba(102, 126, 234, 0.1);
+      border-left: 3px solid map.get($colors, primary);
+      padding-left: 13px;
     }
-    
-    .character-avatar, .member-avatar {
-      width: 32px;
-      height: 32px;
+
+    .character-checkbox {
+      width: 18px;
+      height: 18px;
+      margin-right: 12px;
+      accent-color: map.get($colors, primary);
+      cursor: pointer;
+    }
+
+    .character-avatar,
+    .member-avatar {
+      width: 36px;
+      height: 36px;
       border-radius: 50%;
-      margin-right: 8px;
-      border: 1px solid map.get(map.get($colors, light), border);
+      margin-right: 12px;
+      border: 2px solid map.get(map.get($colors, light), border);
       object-fit: cover;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      transition: all $transition-base;
     }
-    
-    .character-name, .member-name {
+
+    .character-name,
+    .member-name {
       flex: 1;
       font-size: 14px;
+      font-weight: 500;
       color: map.get(map.get($colors, light), text-primary);
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
-    
+
     .selection-indicator {
       font-size: 16px;
-      color: map.get(map.get($colors, light), text-muted);
+      color: map.get($colors, primary);
+      font-weight: bold;
+      margin-left: 8px;
     }
-    
+
     .remove-member-btn {
       background: none;
       border: none;
       color: #ef4444;
       cursor: pointer;
-      padding: 4px;
-      border-radius: 4px;
+      padding: 6px 8px;
+      border-radius: 6px;
       transition: all $transition-base;
-      
+      font-size: 14px;
+      font-weight: bold;
+      margin-left: 8px;
+
       &:hover {
         background: rgba(239, 68, 68, 0.1);
+        transform: scale(1.1);
+      }
+    }
+  }
+
+  .member-item {
+    &:hover {
+      .member-avatar {
+        transform: scale(1.05);
+        border-color: map.get($colors, primary);
+      }
+    }
+  }
+
+  .character-item {
+    &:hover {
+      .character-avatar {
+        transform: scale(1.05);
+        border-color: map.get($colors, primary);
+      }
+    }
+
+    &.selected {
+      .character-avatar {
+        border-color: map.get($colors, primary);
+        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
       }
     }
   }
 }
 
 // 按钮样式
-.btn-primary, .btn-secondary {
+.btn-primary,
+.btn-secondary {
   padding: 10px 20px;
   border-radius: $border-radius-sm;
   font-size: 14px;
@@ -577,7 +525,7 @@ watch(() => props.group, (newGroup) => {
   cursor: pointer;
   transition: all $transition-base;
   border: none;
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -587,7 +535,7 @@ watch(() => props.group, (newGroup) => {
 .btn-primary {
   background: map.get($colors, primary);
   color: white;
-  
+
   &:hover:not(:disabled) {
     background: #5a6fd8;
     transform: translateY(-1px);
@@ -599,147 +547,96 @@ watch(() => props.group, (newGroup) => {
   background: rgba(107, 114, 128, 0.1);
   color: map.get(map.get($colors, light), text-secondary);
   border: 1px solid map.get(map.get($colors, light), border);
-  
+
   &:hover {
     background: rgba(107, 114, 128, 0.2);
   }
 }
 
-// 深色主题
-:root.dark-theme {
+// 暗色主题
+:global(.dark) {
   .modal-content {
-    background: rgba(15, 23, 42, 0.98);
-    border: 1px solid rgba(71, 85, 105, 0.3);
-    backdrop-filter: blur(20px);
+    background: map.get(map.get($colors, dark), bg-primary);
+    color: map.get(map.get($colors, dark), text-primary);
   }
-  
+
   .modal-header {
-    border-bottom: 1px solid rgba(71, 85, 105, 0.3);
-    
+    border-bottom-color: map.get(map.get($colors, dark), border);
+
     h3 {
-      color: #f1f5f9;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+      color: map.get(map.get($colors, dark), text-primary);
+      text-shadow: none;
     }
   }
-  
+
   .close-btn {
-    color: #cbd5e1;
-    
+    color: map.get(map.get($colors, dark), text-secondary);
+
     &:hover {
-      color: #f1f5f9;
-      background: rgba(71, 85, 105, 0.3);
+      color: map.get(map.get($colors, dark), text-primary);
+      background: rgba(map.get(map.get($colors, dark), text-primary), 0.1);
     }
   }
-  
+
   .modal-footer {
-    border-top: 1px solid rgba(71, 85, 105, 0.3);
+    border-top-color: map.get(map.get($colors, dark), border);
   }
-  
-  .group-form {
-    .form-section {
-      border-bottom-color: rgba(71, 85, 105, 0.3);
-      
-      h4 {
-        color: #f1f5f9;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-      }
-      
-      h5 {
-        color: #e2e8f0;
-      }
+
+  .form-section h4 {
+    color: map.get(map.get($colors, dark), text-primary);
+    border-bottom-color: map.get($colors, primary);
+  }
+
+  .form-group label {
+    color: map.get(map.get($colors, dark), text-primary);
+  }
+
+  .form-input {
+    background: map.get(map.get($colors, dark), bg-secondary);
+    border-color: map.get(map.get($colors, dark), border);
+    color: map.get(map.get($colors, dark), text-primary);
+
+    &:focus {
+      border-color: map.get($colors, primary);
+      box-shadow: 0 0 0 3px rgba(map.get($colors, primary), 0.2);
     }
-    
-    .form-group label {
-      color: #e2e8f0;
-    }
-    
-    .form-input, .form-textarea {
-      border-color: rgba(71, 85, 105, 0.5);
-      background: rgba(30, 41, 59, 0.8);
-      color: #f1f5f9;
-      
-      &:focus {
-        background: rgba(30, 41, 59, 0.95);
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
-      }
-      
-      &::placeholder {
-        color: #94a3b8;
-      }
-    }
-    
-    .avatar-preview {
-      border-color: rgba(71, 85, 105, 0.5);
-    }
-    
-    .checkbox-label {
-      color: #e2e8f0;
-      
-      .checkbox {
-        border-color: rgba(71, 85, 105, 0.5);
-        background: rgba(30, 41, 59, 0.8);
-        
-        &::after {
-          color: white;
-        }
-      }
-      
-      input[type="checkbox"]:checked + .checkbox {
-        background: #667eea;
-        border-color: #667eea;
-      }
+
+    &::placeholder {
+      color: map.get(map.get($colors, dark), text-muted);
     }
   }
-  
-  .members-selector {
-    .available-characters, .selected-members {
-      .character-list, .member-list {
-        border-color: rgba(71, 85, 105, 0.3);
-        background: rgba(30, 41, 59, 0.5);
-      }
-    }
-    
-    .character-item, .member-item {
-      border-bottom-color: rgba(71, 85, 105, 0.2);
-      
-      &:hover {
-        background: rgba(71, 85, 105, 0.3);
-      }
-      
-      &.selected {
-        background: rgba(102, 126, 234, 0.2);
-      }
-      
-      .character-avatar, .member-avatar {
-        border-color: rgba(71, 85, 105, 0.3);
-      }
-      
-      .character-name, .member-name {
-        color: #f1f5f9;
-      }
-      
-      .selection-indicator {
-        color: #94a3b8;
-      }
-      
-      .remove-member-btn {
-        color: #f87171;
-        
-        &:hover {
-          background: rgba(248, 113, 113, 0.2);
-        }
-      }
-    }
+
+  .character-list,
+  .member-list {
+    background: rgba(map.get(map.get($colors, dark), bg-tertiary), 0.5);
+    border-color: map.get(map.get($colors, dark), border);
   }
-  
-  .btn-secondary {
-    background: rgba(71, 85, 105, 0.8);
-    color: #f1f5f9;
-    border-color: rgba(71, 85, 105, 0.5);
-    
+
+  .character-item {
     &:hover {
-      background: rgba(71, 85, 105, 1);
+      background: rgba(map.get($colors, primary), 0.1);
+    }
+  }
+
+  .character-checkbox {
+    accent-color: map.get($colors, primary);
+  }
+
+  .character-name,
+  .member-name {
+    color: map.get(map.get($colors, dark), text-primary);
+  }
+
+  .member-item {
+    background: rgba(map.get($colors, primary), 0.1);
+    border-color: map.get($colors, primary);
+  }
+
+  .remove-member-btn {
+    color: map.get($colors, danger);
+
+    &:hover {
+      background: rgba(map.get($colors, danger), 0.1);
     }
   }
 }

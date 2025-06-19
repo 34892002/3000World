@@ -9,7 +9,7 @@
         <img :src="selectedChat.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedChat.name}`" :alt="selectedChat.name" class="header-avatar" />
         <div class="header-details">
           <h3>{{ selectedChat.name }}</h3>
-          <p v-if="currentChat.chatType === 'group'">{{ selectedChat.memberCount }} {{ t('chat.group.membersLabel') }}
+          <p v-if="currentChat && currentChat.chatType === 'group'">{{ selectedChat.memberCount }} {{ t('chat.group.membersLabel') }}
           </p>
         </div>
       </div>
@@ -23,14 +23,14 @@
       <!-- 桌面端聊天头部 -->
       <div v-if="!isMobile && selectedChat" class="chat-header">
         <div class="chat-header-info w-50">
-          <img v-if="currentChat.chatType === 'group'" :src="selectedChat.avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${selectedChat.name}`" :alt="selectedChat.name" class="chat-header-avatar" />
+          <img v-if="currentChat && currentChat.chatType === 'group'" :src="selectedChat.avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${selectedChat.name}`" :alt="selectedChat.name" class="chat-header-avatar" />
           <img v-else :src="selectedChat.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedChat.name}`" :alt="selectedChat.name" class="chat-header-avatar" />
           <div class="chat-header-details w-100">
             <h2>{{ selectedChat.name }}</h2>
-            <p v-if="currentChat.chatType === 'group'" class="member-info">
+            <p v-if="currentChat && currentChat.chatType === 'group'" class="member-info">
               {{ selectedChat.memberCount }} {{ t('chat.group.membersLabel') }}
             </p>
-            <p v-else class="status-info text-truncate">{{ currentUser.persona }}</p>
+            <p v-else class="status-info text-truncate">{{ currentUser?.persona }}</p>
           </div>
         </div>
         <div class="chat-header-actions">
@@ -44,7 +44,7 @@
       <div class="messages-container" ref="messagesContainer" v-if="selectedChat">
         <div v-for="message in selectedChat.messages" :key="message.id"
           :class="['message-wrapper', { 'message-sent': message.isSent, 'message-received': !message.isSent, 'message-thinking': message.isThinking }]">
-          <div v-if="!message.isSent && currentChat.chatType === 'group'" class="message-sender">
+          <div v-if="!message.isSent && currentChat && currentChat.chatType === 'group'" class="message-sender">
             {{ message.sender }}
           </div>
           <div class="message-bubble text-pre-wrap" :class="{ 'thinking-bubble': message.isThinking }">
@@ -118,7 +118,7 @@ const props = defineProps({
   },
   currentChat: {
     type: Object,
-    default: null
+    default: () => ({ userId: null, chatType: '' })
   },
   messages: {
     type: Array,
@@ -139,10 +139,6 @@ const props = defineProps({
   defaultAiAvatar: {
     type: String,
     default: 'https://api.dicebear.com/7.x/bottts/svg?seed=ai'
-  },
-  currentChat: {
-    type: Object,
-    default: () => ({ userId: null, chatType: '' })
   },
   characters: {
     type: Array,
@@ -169,6 +165,7 @@ const mentionStartIndex = ref(-1)
 const filteredSuggestions = ref([])
 
 const currentUser = computed(() => {
+  if (!props.currentChat || !props.currentChat.userId) return null
   const userId = props.currentChat.userId
   return props.characters.find(character => character.id === userId)
 })
@@ -184,6 +181,7 @@ const canSend = computed(() => {
  * 获取当前选中的聊天
  */
 const selectedChat = computed(() => {
+  if (!props.currentChat || !props.currentChat.chatType || !props.currentChat.userId) return null
   const chats = props.currentChat.chatType === 'private' ? props.privateChats : props.groupChats
   return chats.find(chat => chat.id === props.currentChat.userId)
 })
@@ -194,7 +192,7 @@ const selectedChat = computed(() => {
 const getInputPlaceholder = () => {
   if (props.isLoading) return t('chat.input.loading')
   if (!props.currentChat) return t('chat.input.selectChat')
-  return t('chat.input.placeholder', { name: props.currentChat.name })
+  return t('chat.input.placeholder', { name: props.currentChat?.name || '' })
 }
 
 /**
@@ -355,7 +353,7 @@ const getSessionParticipants = () => {
   }
   
   // 如果是群聊，返回群聊中的所有角色
-  if (props.currentChat.chatType === 'group') {
+  if (props.currentChat && props.currentChat.chatType === 'group') {
     // 获取群聊的角色ID列表
     const characterIds = selectedChat.value.characterIds || selectedChat.value.members || []
     
@@ -368,7 +366,7 @@ const getSessionParticipants = () => {
   }
   
   // 如果是私聊，返回对话的角色
-  if (props.currentChat.chatType === 'private') {
+  if (props.currentChat && props.currentChat.chatType === 'private') {
     const character = selectedChat.value.character || selectedChat.value.user || selectedChat.value
     return character ? [character] : []
   }
@@ -381,7 +379,7 @@ const getSessionParticipants = () => {
  */
 const handleMentionInput = () => {
   // 私聊模式下不启用@提及功能
-  if (props.currentChat.chatType !== 'group') {
+  if (!props.currentChat || props.currentChat.chatType !== 'group') {
     showMentionSuggestions.value = false
     return
   }

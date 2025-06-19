@@ -8,14 +8,14 @@
       :worldbook="worldbook" :privateChats="privateChats" @select-chat="selectChat" :groupChats="groupChats"
       @open-settings="showSettings = true" @create-dialog="showCreateDialog"
       @select-worldbook-entry="selectWorldbookEntry" @toggle-player-character="togglePlayerCharacter" 
-      @open-api-config="openApiConfig" />
+      @open-api-config="openApiConfig" @edit-group="editGroup" @delete-group="deleteGroup" />
 
     <!-- 主聊天区域 -->
     <ChatArea :isMobile="isMobile" :currentChat="currentChat" :privateChats="privateChats" :groupChats="groupChats"
       :characters="characters" @toggle-sidebar="sidebarOpen = !sidebarOpen" @send-message="sendMessage" />
 
     <!-- 群组编辑器组件 -->
-    <GroupEditor :visible="showGroupEditor" :group="editingGroup" @close="closeGroupEditor" @save="saveGroup" />
+    <GroupEditor :visible="showGroupEditor" :group="editingGroup" :characters="dbCharacters" @close="closeGroupEditor" @save="saveGroup" />
 
     <!-- 角色编辑器 -->
     <CharacterEditor :visible="showCharacterEditor" :character="editingCharacter" @close="closeCharacterEditor"
@@ -31,7 +31,7 @@
       @close="closeWorldbookEditor" @saved="saveWorldbookEntry" @deleted="deleteWorldbookEntry" />
 
     <!-- API配置对话框 -->
-    <ApiConfigDialog :visible="showApiConfig" :config="config" 
+    <ModelConfigDialog :visible="showApiConfig" :config="config" 
       @close="closeApiConfig" @save="saveApiConfig" />
 
   </div>
@@ -50,7 +50,7 @@ import GroupEditor from '@/components/GroupEditor.vue'
 import CharacterEditor from '@/components/CharacterEditor.vue'
 import SettingsDialog from '@/components/SettingsDialog.vue'
 import WorldbookEditor from '@/components/WorldbookEditor.vue'
-import ApiConfigDialog from '@/components/ApiConfigDialog.vue'
+import ModelConfigDialog from '@/components/ModelConfigDialog.vue'
 
 // 国际化和路由
 const { t, locale } = useI18n()
@@ -70,6 +70,7 @@ const {
   saveCharacter: dbSaveCharacter,
   deleteCharacter: dbDeleteCharacter,
   saveGroup: dbSaveGroup,
+  deleteGroup: dbDeleteGroup,
   saveConfig,
   refresh: refreshData,
 } = useDatabase()
@@ -93,11 +94,7 @@ const showGroupEditor = ref(false)
 const editingGroup = ref({
   id: null,
   name: '',
-  description: '',
-  avatar: '',
-  members: [],
-  isPrivate: false,
-  allowInvites: true
+  characterIds: []
 })
 
 // 角色编辑器相关
@@ -558,25 +555,45 @@ const openGroupEditor = (group = null) => {
     editingGroup.value = {
       id: group.id,
       name: group.name,
-      description: group.description || '',
-      avatar: group.avatar,
-      members: [...group.members] || [],
-      isPrivate: group.isPrivate || false,
-      allowInvites: group.allowInvites !== false
+      characterIds: [...(group.characterIds || [])]
     }
   } else {
     // 创建新群组
     editingGroup.value = {
       id: null,
       name: '',
-      description: '',
-      avatar: '',
-      members: [],
-      isPrivate: false,
-      allowInvites: true
+      characterIds: []
     }
   }
   showGroupEditor.value = true
+}
+
+/**
+ * 编辑群组
+ * @param {Object} group - 群组对象
+ */
+const editGroup = (group) => {
+  openGroupEditor(group)
+}
+
+/**
+ * 删除群组
+ * @param {string|number} groupId - 群组ID
+ */
+const deleteGroup = async (groupId) => {
+  try {
+    const success = await dbDeleteGroup(groupId)
+    if (success) {
+      // 更新群组列表
+      await loadGroupChats()
+      // 如果删除的是当前聊天，重置当前聊天
+      if (currentChat.value && currentChat.value.chatType === 'group' && currentChat.value.userId === groupId) {
+        currentChat.value = { userId: null, chatType: '' }
+      }
+    }
+  } catch (error) {
+    console.error('删除群组失败:', error)
+  }
 }
 
 /**
@@ -589,11 +606,7 @@ const closeGroupEditor = () => {
     editingGroup.value = {
       id: null,
       name: '',
-      description: '',
-      avatar: '',
-      members: [],
-      isPrivate: false,
-      allowInvites: true
+      characterIds: []
     }
   }, 300)
 }
@@ -601,24 +614,25 @@ const closeGroupEditor = () => {
 /**
  * 保存群组
  */
-const saveGroup = async () => {
-  if (!editingGroup.value.name.trim()) {
+const saveGroup = async (groupData) => {
+  if (!groupData || !groupData.name.trim()) {
     return
   }
 
-  const groupData = {
-    name: editingGroup.value.name.trim(),
-    description: editingGroup.value.description.trim(),
-    avatar: editingGroup.value.avatar,
-    characterIds: editingGroup.value.members || [],
-    isPrivate: editingGroup.value.isPrivate,
-    allowInvites: editingGroup.value.allowInvites,
-    id: editingGroup.value.id
+  // 使用传递的数据，确保数据结构正确
+  const saveData = {
+    name: groupData.name.trim(),
+    characterIds: groupData.characterIds || []
+  }
+
+  // 如果是编辑模式，添加 id
+  if (groupData.id) {
+    saveData.id = groupData.id
   }
 
   try {
     // 使用数据库保存群组
-    const savedId = await dbSaveGroup(groupData)
+    const savedId = await dbSaveGroup(saveData)
 
     if (savedId) {
       // 更新群聊列表
@@ -945,7 +959,7 @@ const loadGroupChats = async () => {
     groupChats.value = dbGroups.value.map(group => ({
       id: group.id,
       name: group.name,
-      avatar: group.avatar,
+      avatar: `https://api.dicebear.com/7.x/identicon/svg?seed=${group.name}`,
       lastMessage: '',
       lastMessageTime: new Date(),
       unreadCount: 0,
@@ -1060,24 +1074,6 @@ onUnmounted(() => {
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
   z-index: 99;
-}
-
-// 滚动条样式
-::-webkit-scrollbar {
-  width: 6px;
-
-  &-track {
-    background: transparent;
-  }
-
-  &-thumb {
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 3px;
-
-    &:hover {
-      background: rgba(0, 0, 0, 0.3);
-    }
-  }
 }
 
 // 深色主题

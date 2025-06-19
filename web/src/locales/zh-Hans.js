@@ -48,7 +48,8 @@ export default {
             selectedMembers: '已选成员',
             settingsTitle: '群组设置',
             privateGroup: '私密群组',
-            allowInvites: '允许邀请'
+            allowInvites: '允许邀请',
+            deleteConfirm: '确定要删除这个群组吗？'
         },
         characters: {
             title: '角色卡片',

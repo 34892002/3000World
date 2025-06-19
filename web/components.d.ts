@@ -8,13 +8,13 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    ApiConfigDialog: typeof import('./src/components/ApiConfigDialog.vue')['default']
     AppFooter: typeof import('./src/components/AppFooter.vue')['default']
     CharacterEditor: typeof import('./src/components/CharacterEditor.vue')['default']
     ChatArea: typeof import('./src/components/ChatArea.vue')['default']
     GlobalNotification: typeof import('./src/components/GlobalNotification.vue')['default']
     GroupEditor: typeof import('./src/components/GroupEditor.vue')['default']
     HelloWorld: typeof import('./src/components/HelloWorld.vue')['default']
+    ModelConfigDialog: typeof import('./src/components/ModelConfigDialog.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SettingsDialog: typeof import('./src/components/SettingsDialog.vue')['default']

@@ -48,7 +48,8 @@ export default {
             selectedMembers: 'Selected Members',
             settingsTitle: 'Group Settings',
             privateGroup: 'Private Group',
-            allowInvites: 'Allow Invites'
+            allowInvites: 'Allow Invites',
+            deleteConfirm: 'Are you sure you want to delete this group?'
         },
         characters: {
             title: 'Characters',

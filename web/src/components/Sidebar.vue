@@ -48,7 +48,7 @@
         </div>
         <div class="chat-list">
           <div v-for="chat in filteredPrivateChats" :key="chat.id"
-            :class="['chat-item', { active: currentChat.userId === chat.id && currentChat.chatType === 'private' }]"
+            :class="['chat-item', { active: currentChat && currentChat.userId === chat.id && currentChat.chatType === 'private' }]"
             @click="selectChat(chat.id, 'private')">
             <div class="chat-avatar">
               <img :src="chat.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${chat.name}`" :alt="chat.name" />
@@ -75,7 +75,7 @@
         </div>
         <div class="chat-list">
           <div v-for="chat in filteredGroupChats" :key="chat.id"
-            :class="['chat-item', { active: currentChat.userId === chat.id && currentChat.chatType === 'group' }]"
+            :class="['chat-item', { active: currentChat && currentChat.userId === chat.id && currentChat.chatType === 'group' }]"
             @click="selectChat(chat.id, 'group')">
             <div class="chat-avatar group-avatar">
               <img :src="chat.avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${chat.name}`" :alt="chat.name" />
@@ -88,6 +88,14 @@
             </div>
             <div class="chat-meta">
               <span class="chat-time">{{ formatTime(chat.lastMessageTime) }}</span>
+            </div>
+            <div class="group-actions">
+              <button class="edit-btn" @click.stop="editGroup(chat)">
+                ✏️
+              </button>
+              <button class="delete-btn" @click.stop="deleteGroup(chat.id)">
+                🗑️
+              </button>
             </div>
           </div>
         </div>
@@ -231,7 +239,9 @@ const emit = defineEmits([
   'delete-character',
   'toggle-player-character',
   'open-world-config',
-  'open-api-config'
+  'open-api-config',
+  'edit-group',
+  'delete-group'
 ])
 
 // 响应式状态
@@ -266,8 +276,9 @@ const getSearchPlaceholder = () => {
  * 根据搜索查询过滤私聊列表
  */
 const filteredPrivateChats = computed(() => {
-  if (!searchQuery.value) return props.privateChats
-  return props.privateChats.filter(chat =>
+  const validChats = props.privateChats.filter(chat => chat && chat.id && chat.name)
+  if (!searchQuery.value) return validChats
+  return validChats.filter(chat =>
     chat.name.toLowerCase().includes(searchQuery.value.toLowerCase())
   )
 })
@@ -276,8 +287,9 @@ const filteredPrivateChats = computed(() => {
  * 根据搜索查询过滤群聊列表
  */
 const filteredGroupChats = computed(() => {
-  if (!searchQuery.value) return props.groupChats
-  return props.groupChats.filter(chat =>
+  const validChats = props.groupChats.filter(chat => chat && chat.id && chat.name)
+  if (!searchQuery.value) return validChats
+  return validChats.filter(chat =>
     chat.name.toLowerCase().includes(searchQuery.value.toLowerCase())
   )
 })
@@ -391,6 +403,26 @@ const openWorldConfig = () => {
  */
 const openApiConfig = () => {
   emit('open-api-config')
+}
+
+/**
+ * 编辑群组
+ * @param {Object} group - 群组对象
+ */
+const editGroup = (group) => {
+  if (group) {
+    emit('edit-group', group)
+  }
+}
+
+/**
+ * 删除群组
+ * @param {string|number} groupId - 群组ID
+ */
+const deleteGroup = (groupId) => {
+  if (groupId && confirm(t('chat.group.deleteConfirm'))) {
+    emit('delete-group', groupId)
+  }
 }
 
 /**
@@ -569,6 +601,28 @@ const getTabBadgeCount = (tabKey) => {
 
   .setting-icon {
     color: map.get(map.get($colors, dark), text-secondary);
+  }
+
+  // 深色主题下的群组操作按钮
+  .group-actions {
+    .edit-btn,
+    .delete-btn {
+      background: rgba(30, 41, 59, 0.9);
+      color: map.get(map.get($colors, dark), text-primary);
+      border: 1px solid rgba(71, 85, 105, 0.5);
+    }
+
+    .edit-btn:hover {
+      background: rgba(59, 130, 246, 0.9);
+      color: white;
+      border-color: rgba(59, 130, 246, 0.9);
+    }
+
+    .delete-btn:hover {
+      background: rgba(239, 68, 68, 0.9);
+      color: white;
+      border-color: rgba(239, 68, 68, 0.9);
+    }
   }
 }
 
@@ -820,6 +874,7 @@ const getTabBadgeCount = (tabKey) => {
   }
 
   .chat-item {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -833,6 +888,10 @@ const getTabBadgeCount = (tabKey) => {
     &:hover {
       background: rgba(102, 126, 234, 0.1);
       transform: translateY(-1px);
+      
+      .group-actions {
+        opacity: 1;
+      }
     }
 
     &.active {
@@ -1024,6 +1083,46 @@ const getTabBadgeCount = (tabKey) => {
         color: white;
         box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.3);
       }
+    }
+
+    .delete-btn:hover {
+      background: rgba(239, 68, 68, 0.9);
+      color: white;
+    }
+  }
+
+  // 群组操作按钮
+  .group-actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+
+    .edit-btn,
+    .delete-btn {
+      width: 24px;
+      height: 24px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.9);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      transition: all 0.2s ease;
+
+      &:hover {
+        transform: scale(1.1);
+      }
+    }
+
+    .edit-btn:hover {
+      background: rgba(59, 130, 246, 0.9);
+      color: white;
     }
 
     .delete-btn:hover {

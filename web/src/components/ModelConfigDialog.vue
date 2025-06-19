@@ -251,7 +251,7 @@ watch(() => props.visible, (visible) => {
   transition: all 0.2s;
   
   &:hover:not(:disabled) {
-    background: darken(map.get($colors, primary), 10%);
+    background: map.get($colors, primary);
   }
   
   &:disabled {
