@@ -287,6 +287,9 @@ const handleFileSelect = async (event) => {
     const success = await importWorld(worldData, worldName)
     
     if (success) {
+      // 连接到导入的世界以确保数据正确加载
+      await connectToWorld(worldName)
+      
       // 保存当前世界名称到本地存储
       localStorage.setItem('current-world-id', worldName)
       
