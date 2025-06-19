@@ -78,7 +78,15 @@ export default {
             allowEditHelp: 'Allow other users to modify this character',
             deleteConfirm: 'Are you sure you want to delete this character?',
             deleteSuccess: 'Character deleted successfully',
-            saveSuccess: 'Character saved successfully'
+            deleteError: 'Failed to delete character',
+            saveSuccess: 'Character saved successfully',
+            saveError: 'Failed to save character',
+            playerCharacter: 'Main Character',
+            setPlayer: 'Set as Main Character',
+            removePlayer: 'Remove Main Character',
+            setPlayerSuccess: 'Set as main character successfully',
+            removePlayerSuccess: 'Removed main character status successfully',
+            togglePlayerError: 'Failed to toggle main character status'
         },
         worldbook: {
             title: 'Worldbook'

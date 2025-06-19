@@ -20,9 +20,9 @@ export default {
         tabs: {
             private: '私聊',
             group: '群组',
-            characters: '角色',
+            characters: '角色卡片',
             worldbook: '世界之书',
-            settings: '设置',
+            settings: '世界设置',
         },
         search: {
             private: '搜索私聊',
@@ -51,7 +51,7 @@ export default {
             allowInvites: '允许邀请'
         },
         characters: {
-            title: '角色',
+            title: '角色卡片',
             createTitle: '创建角色',
             editTitle: '编辑角色',
             basicInfo: '基本信息',
@@ -78,7 +78,15 @@ export default {
             allowEditHelp: '允许其他用户修改此角色',
             deleteConfirm: '确定要删除这个角色吗？',
             deleteSuccess: '角色删除成功',
-            saveSuccess: '角色保存成功'
+            deleteError: '删除角色失败',
+            saveSuccess: '角色保存成功',
+            saveError: '保存角色失败',
+            playerCharacter: '主角',
+            setPlayer: '设为主角',
+            removePlayer: '取消主角',
+            setPlayerSuccess: '已设为主角',
+            removePlayerSuccess: '已取消主角状态',
+            togglePlayerError: '切换主角状态失败'
         },
         worldbook: {
             title: '世界之书'

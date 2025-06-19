@@ -105,12 +105,24 @@
             @click="selectCharacter(character.id)">
             <div class="character-avatar">
               <img :src="character.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${character.name}`" :alt="character.name" />
+              <!-- 主角皇冠标识 -->
+              <div v-if="character.isPlayer" class="player-crown" :title="t('chat.characters.playerCharacter')">
+                👑
+              </div>
             </div>
             <h5 class="character-name">{{ character.name }}</h5>
             <p class="character-desc">{{ character.description }}</p>
             <div class="character-actions">
               <button class="edit-btn" @click.stop="openCharacterEditor(character)">
                 ✏️
+              </button>
+              <button 
+                class="player-btn" 
+                @click.stop="togglePlayerCharacter(character.id)"
+                :class="{ active: character.isPlayer }"
+                :title="character.isPlayer ? t('chat.characters.removePlayer') : t('chat.characters.setPlayer')"
+              >
+                👑
               </button>
               <button class="delete-btn" @click.stop="deleteCharacter(character.id)">
                 🗑️
@@ -216,6 +228,7 @@ const emit = defineEmits([
   'select-worldbook-entry',
   'open-character-editor',
   'delete-character',
+  'toggle-player-character',
   'open-world-config',
   'open-api-config'
 ])
@@ -228,9 +241,9 @@ const activeTab = ref('private')
 const navTabs = ref([
   { key: 'private', icon: '💬', label: 'chat.tabs.private', badge: null },
   { key: 'group', icon: '👥', label: 'chat.tabs.group', badge: null },
-  { key: 'characters', icon: '🎭', label: 'chat.characters.title', badge: null },
-  { key: 'worldbook', icon: '📚', label: 'chat.worldbook.title', badge: null },
-  { key: 'settings', icon: '⚙️', label: 'chat.worldSettings.title', badge: null }
+  { key: 'characters', icon: '🎭', label: 'chat.tabs.characters', badge: null },
+  { key: 'worldbook', icon: '📚', label: 'chat.tabs.worldbook', badge: null },
+  { key: 'settings', icon: '⚙️', label: 'chat.tabs.settings', badge: null }
 ])
 
 /**
@@ -352,6 +365,16 @@ const openCharacterEditor = (character = null) => {
 const deleteCharacter = (characterId) => {
   if (characterId && confirm(t('chat.characters.deleteConfirm'))) {
     emit('delete-character', characterId)
+  }
+}
+
+/**
+ * 切换角色的主角状态
+ * @param {string|number} characterId - 角色ID
+ */
+const togglePlayerCharacter = (characterId) => {
+  if (characterId) {
+    emit('toggle-player-character', characterId)
   }
 }
 
@@ -911,6 +934,9 @@ const getTabBadgeCount = (tabKey) => {
   }
 
   .character-avatar {
+    position: relative;
+    display: inline-block;
+    
     img {
       width: 48px;
       height: 48px;
@@ -918,6 +944,22 @@ const getTabBadgeCount = (tabKey) => {
       margin-bottom: 8px;
       border: 1px solid map.get($colors, gray);
     }
+  }
+
+  .player-crown {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    font-size: 16px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    z-index: 1;
   }
 
   .character-name {
@@ -945,6 +987,7 @@ const getTabBadgeCount = (tabKey) => {
     transition: opacity 0.2s ease;
 
     .edit-btn,
+    .player-btn,
     .delete-btn {
       width: 24px;
       height: 24px;
@@ -966,6 +1009,19 @@ const getTabBadgeCount = (tabKey) => {
     .edit-btn:hover {
       background: rgba(59, 130, 246, 0.9);
       color: white;
+    }
+
+    .player-btn {
+      &:hover {
+        background: rgba(251, 191, 36, 0.9);
+        color: white;
+      }
+
+      &.active {
+        background: rgba(251, 191, 36, 0.9);
+        color: white;
+        box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.3);
+      }
     }
 
     .delete-btn:hover {

@@ -4,14 +4,14 @@
     <div v-if="sidebarOpen && isMobile" class="mobile-overlay" @click="sidebarOpen = false"></div>
 
     <!-- 侧边栏 -->
-    <Sidebar :sidebarOpen="sidebarOpen" :currentChat="currentChat" :worldInfo="worldInfo"
-      :characters="characters" :worldbook="worldbook" :privateChats="privateChats" @select-chat="selectChat"
-      :groupChats="groupChats" @open-settings="showSettings = true" @create-dialog="showCreateDialog"
-      @select-worldbook-entry="selectWorldbookEntry" />
+    <Sidebar :sidebarOpen="sidebarOpen" :currentChat="currentChat" :worldInfo="worldInfo" :characters="characters"
+      :worldbook="worldbook" :privateChats="privateChats" @select-chat="selectChat" :groupChats="groupChats"
+      @open-settings="showSettings = true" @create-dialog="showCreateDialog"
+      @select-worldbook-entry="selectWorldbookEntry" @toggle-player-character="togglePlayerCharacter" />
 
     <!-- 主聊天区域 -->
     <ChatArea :isMobile="isMobile" :currentChat="currentChat" :privateChats="privateChats" :groupChats="groupChats"
-      @toggle-sidebar="sidebarOpen = !sidebarOpen" @send-message="sendMessage" />
+      :characters="characters" @toggle-sidebar="sidebarOpen = !sidebarOpen" @send-message="sendMessage" />
 
     <!-- 群组编辑器组件 -->
     <GroupEditor :visible="showGroupEditor" :group="editingGroup" @close="closeGroupEditor" @save="saveGroup" />
@@ -59,6 +59,7 @@ const {
   saveCharacter: dbSaveCharacter,
   deleteCharacter: dbDeleteCharacter,
   saveGroup: dbSaveGroup,
+  refresh: refreshData,
 } = useDatabase()
 
 // 为了保持兼容性，创建 worldConfig 的引用
@@ -134,10 +135,10 @@ const checkMobile = () => {
  */
 const selectChat = async (chatId, type) => {
   currentChat.value = { userId: chatId, chatType: type }
-  
+
   // 加载聊天历史
   await loadChatHistory(chatId, type)
-  
+
   if (isMobile.value) {
     sidebarOpen.value = false
   }
@@ -151,25 +152,25 @@ const selectChat = async (chatId, type) => {
 const loadChatHistory = async (chatId, type) => {
   try {
     const sessionId = `${type}_${chatId}`
-    
+
     // 检查缓存
     if (chatSessions.value.has(sessionId)) {
       return chatSessions.value.get(sessionId)
     }
-    
+
     // 从数据库加载
     const rawMessages = await getChatHistory(sessionId)
-    
+
     // 为历史消息添加必要的显示属性
     const messages = rawMessages.map(msg => ({
       ...msg,
       isSent: msg.role === 'user' || (msg.role === 'char' && msg.characterId && dbCharacters.value.find(char => char.id === msg.characterId && char.isPlayer)),
       isRead: msg.role !== 'user'
     }))
-    
+
     // 缓存聊天历史
     chatSessions.value.set(sessionId, messages)
-    
+
     // 更新对应的聊天对象
     if (type === 'private') {
       const chat = privateChats.value.find(c => c.id === chatId)
@@ -182,7 +183,7 @@ const loadChatHistory = async (chatId, type) => {
         chat.messages = messages
       }
     }
-    
+
     return messages
   } catch (error) {
     console.error('加载聊天历史失败:', error)
@@ -192,16 +193,16 @@ const loadChatHistory = async (chatId, type) => {
 
 const sendMessage = async (message) => {
   if (!message.trim() || !currentChat.value.userId) return
-  
+
   const sessionId = `${currentChat.value.chatType}_${currentChat.value.userId}`
-  
+
   // 确定消息发送者角色
   const playerCharacter = dbCharacters.value.find(char => char.isPlayer)
   const isPlayerSpeaking = !!playerCharacter
   const role = isPlayerSpeaking ? 'char' : 'user'
   const characterName = isPlayerSpeaking ? playerCharacter.name : null
   const characterId = isPlayerSpeaking ? playerCharacter.id : null
-  
+
   // 创建用户消息数据
   const userMessageData = {
     content: message,
@@ -213,20 +214,20 @@ const sendMessage = async (message) => {
     isSent: true,
     isRead: false
   }
-  
+
   try {
     // 保存用户消息到数据库
     const savedUserMessage = await saveMessage(userMessageData)
-    
+
     if (savedUserMessage) {
       // 更新本地缓存
       const cachedMessages = chatSessions.value.get(sessionId) || []
       cachedMessages.push(savedUserMessage)
       chatSessions.value.set(sessionId, cachedMessages)
-      
+
       // 更新聊天列表
       updateChatList(sessionId, cachedMessages, message)
-      
+
       // 添加"思考中..."状态消息
       const thinkingMessage = {
         id: 'thinking_' + Date.now(),
@@ -240,12 +241,12 @@ const sendMessage = async (message) => {
         isRead: true,
         isThinking: true // 标记为思考状态消息
       }
-      
+
       // 临时添加思考消息到缓存和界面
       const messagesWithThinking = [...cachedMessages, thinkingMessage]
       chatSessions.value.set(sessionId, messagesWithThinking)
       updateChatList(sessionId, messagesWithThinking, thinkingMessage.content)
-      
+
       // 获取AI响应
       await generateAIResponse(message, sessionId)
     }
@@ -277,10 +278,10 @@ const updateChatList = (sessionId, messages, lastMessage) => {
 // 获取会话参与者
 const getSessionParticipants = async () => {
   if (!currentChat.value.userId) return []
-  
+
   const chatType = currentChat.value.chatType
   const userId = currentChat.value.userId
-  
+
   if (chatType === 'private') {
     // 私聊：返回对应的角色
     const character = dbCharacters.value.find(char => char.id === userId)
@@ -294,33 +295,33 @@ const getSessionParticipants = async () => {
         .filter(Boolean)
     }
   }
-  
+
   return []
 }
 
 // 构建AI提示
 const constructPrompt = async (targetCharacterName = null, sessionId) => {
   const participants = await getSessionParticipants()
-  
+
   // 获取聊天历史（最近15条消息）
   const history = await getChatHistory(sessionId)
   const recentHistory = history.slice(-15)
-  
+
   // 获取对话文本用于触发世界设定
   const convoText = recentHistory.map(h => h.content).join('\n')
-  
+
   // 获取触发的世界设定
   const triggeredWorlds = dbWorldbooks.value.filter(w => {
     const keywords = w.keywords.split(/[,，]/).map(k => k.trim().toLowerCase())
     return keywords.some(keyword => convoText.toLowerCase().includes(keyword))
   })
-  
+
   // 构建场景角色部分
   let prompt = '[System Note: This is a roleplay conversation.]\n\n== CHARACTERS IN THIS SCENE ==\n'
   participants.forEach(p => {
     prompt += `Name: ${p.name}\nPersona: ${p.persona}\n\n`
   })
-  
+
   // 添加世界设定
   if (triggeredWorlds.length > 0) {
     prompt += '== RELEVANT WORLDBOOK ENTRIES ==\n'
@@ -328,14 +329,14 @@ const constructPrompt = async (targetCharacterName = null, sessionId) => {
       prompt += `Content for "${w.keywords}": ${w.content}\n\n`
     })
   }
-  
+
   // 添加对话历史
   prompt += '== RECENT CONVERSATION HISTORY ==\n'
-  
+
   // 检查是否有主角角色
   const playerCharacter = dbCharacters.value.find(char => char.isPlayer)
   const hasPlayerCharacter = !!playerCharacter
-  
+
   // 根据是否有主角角色，调整历史消息的显示方式
   recentHistory.forEach(msg => {
     let speakerName
@@ -346,17 +347,17 @@ const constructPrompt = async (targetCharacterName = null, sessionId) => {
     }
     prompt += `${speakerName}: ${msg.content}\n`
   })
-  
+
   // 构建角色扮演指令
   let roleplayInstruction = ''
   const isGroup = currentChat.value.chatType === 'group' && participants.length > 1
-  
+
   // 添加基础AI控制规则
   let aiControlRules = 'IMPORTANT: AI can only control the behaviors and dialogues of non-player characters, and must never speak or act on behalf of the player character.'
   if (hasPlayerCharacter) {
     aiControlRules += ` The player character is ${playerCharacter.name}, and the AI must never control this character.`
   }
-  
+
   if (isGroup) {
     if (targetCharacterName) {
       // 如果有主角，调整提示以反映用户是以主角身份说话
@@ -376,17 +377,17 @@ const constructPrompt = async (targetCharacterName = null, sessionId) => {
       roleplayInstruction = `${aiControlRules} Continue as ${participants[0]?.name}. Do not include your name as a prefix.`
     }
   }
-  
+
   // 添加语言指令
   const langInstruction = locale.value === 'zhHans' ? '你必须只使用简体中文进行回复。' : 'You MUST respond only in English.'
-  
+
   // 如果有主角，添加额外说明
   if (hasPlayerCharacter) {
     prompt += `\n[System Note: 严格规则：玩家角色是 ${playerCharacter.name}，AI绝不能代替此角色说话或行动。剧情只能根据 ${playerCharacter.name} 的对话来推进。如果没有说明角色应该互相不认识，应该随着角色之间的对话来缓慢推进剧情。 ${roleplayInstruction} Final instruction: ${langInstruction}]`
   } else {
     prompt += `\n[System Note: ${roleplayInstruction} Final instruction: ${langInstruction}]`
   }
-  
+
   console.log('--- PROMPT SENT TO AI ---\n', prompt)
   return prompt
 }
@@ -399,34 +400,34 @@ const generateAIResponse = async (userMessage, sessionId) => {
       console.error('AI配置未加载，无法生成响应');
       throw new Error('AI配置未加载');
     }
-    
+
     // 获取会话参与者
     const participants = await getSessionParticipants()
     if (participants.length === 0) return
-    
+
     // 检查是否有@提及
     let mentionedChar = null
     const match = userMessage.match(/@([\p{L}\p{N}_]+)/u)
     if (match) {
       const mentionedName = match[1]
-      mentionedChar = participants.find(p => 
+      mentionedChar = participants.find(p =>
         p.name === mentionedName || p.name.toLowerCase() === mentionedName.toLowerCase()
       )
     }
-    
+
     // 构建提示并获取AI响应
     const prompt = await constructPrompt(mentionedChar ? mentionedChar.name : null, sessionId)
     console.log('@worldConfig.value: ', worldConfig.value);
     const responseText = await getAIResponse(prompt, worldConfig.value)
-    
+
     // 清理AI响应
     let cleanedResponse = cleanAIResponse(responseText)
-    
+
     // 解析响应中的角色名和内容
     let respCharName = null
     let content = cleanedResponse
     const parts = cleanedResponse.split(':')
-    
+
     // 如果有@提及，优先让被@的角色回应
     if (mentionedChar && parts.length > 1) {
       const firstPart = parts[0].trim()
@@ -445,11 +446,11 @@ const generateAIResponse = async (userMessage, sessionId) => {
         content = parts.slice(1).join(':').trim()
       }
     }
-    
+
     // 创建AI响应消息数据
     const finalCharId = respCharName ? participants.find(p => p.name === respCharName)?.id : null
     const displayName = respCharName || (mentionedChar ? mentionedChar.name : null)
-    
+
     const aiMessageData = {
       content: content,
       timestamp: new Date(),
@@ -460,24 +461,24 @@ const generateAIResponse = async (userMessage, sessionId) => {
       isSent: false,
       isRead: true
     }
-    
+
     // 保存AI响应到数据库
     const savedAIMessage = await saveMessage(aiMessageData)
-    
+
     if (savedAIMessage) {
       // 获取当前缓存消息并移除"思考中..."消息
       const cachedMessages = chatSessions.value.get(sessionId) || []
       const filteredMessages = cachedMessages.filter(msg => !msg.isThinking)
       filteredMessages.push(savedAIMessage)
       chatSessions.value.set(sessionId, filteredMessages)
-      
+
       // 更新聊天列表
       updateChatList(sessionId, filteredMessages, content)
     }
-    
+
   } catch (error) {
     console.error('AI响应生成失败:', error)
-    
+
     // 添加错误消息
     const errorMessageData = {
       content: `抱歉，我出错了: ${error.message}`,
@@ -488,7 +489,7 @@ const generateAIResponse = async (userMessage, sessionId) => {
       isSent: false,
       isRead: true
     }
-    
+
     const savedErrorMessage = await saveMessage(errorMessageData)
     if (savedErrorMessage) {
       // 获取当前缓存消息并移除"思考中..."消息
@@ -597,7 +598,7 @@ const saveGroup = async () => {
   try {
     // 使用数据库保存群组
     const savedId = await dbSaveGroup(groupData)
-    
+
     if (savedId) {
       // 更新群聊列表
       await loadGroupChats()
@@ -675,12 +676,12 @@ const saveCharacter = async (characterData) => {
   try {
     // 使用数据库保存角色
     const savedId = await dbSaveCharacter(processedData)
-    
+
     if (savedId) {
       // 显示成功消息
       alert(t('chat.characters.saveSuccess'))
       closeCharacterEditor()
-      
+
       // 更新私聊列表（如果需要）
       await loadPrivateChats()
     }
@@ -699,16 +700,16 @@ const deleteCharacter = async (characterId) => {
     try {
       // 使用数据库删除角色
       const success = await dbDeleteCharacter(characterId)
-      
+
       if (success) {
         // 如果正在编辑这个角色，关闭编辑器
         if (editingCharacter.value && editingCharacter.value.id === characterId) {
           closeCharacterEditor()
         }
-        
+
         // 更新私聊列表
         await loadPrivateChats()
-        
+
         // 显示成功消息
         alert(t('chat.characters.deleteSuccess'))
       }
@@ -716,6 +717,57 @@ const deleteCharacter = async (characterId) => {
       console.error('删除角色失败:', error)
       alert(t('chat.characters.deleteError') || '删除角色失败')
     }
+  }
+}
+
+/**
+ * 切换角色的主角状态
+ * @param {number} characterId - 角色ID
+ */
+const togglePlayerCharacter = async (characterId) => {
+  try {
+    // 找到要切换的角色
+    const character = dbCharacters.value.find(char => char.id === characterId)
+    if (!character) {
+      console.error('角色不存在:', characterId)
+      return
+    }
+
+    // 如果要设置为主角，先取消其他角色的主角状态
+    if (!character.isPlayer) {
+      // 找到当前的主角并取消其主角状态
+      const currentPlayer = dbCharacters.value.find(char => char.isPlayer)
+      if (currentPlayer) {
+        const updatedCurrentPlayer = {
+          ...currentPlayer,
+          isPlayer: false
+        }
+        await dbSaveCharacter(updatedCurrentPlayer)
+      }
+    }
+
+    // 切换目标角色的主角状态
+    const updatedCharacter = {
+      ...character,
+      isPlayer: !character.isPlayer
+    }
+
+    // 保存到数据库
+    const success = await dbSaveCharacter(updatedCharacter)
+
+    if (success) {
+      // 重新加载角色数据
+      await refreshData()
+
+      // 显示成功消息
+      const message = updatedCharacter.isPlayer
+        ? t('chat.characters.setPlayerSuccess')
+        : t('chat.characters.removePlayerSuccess')
+      alert(message)
+    }
+  } catch (error) {
+    console.error('切换主角状态失败:', error)
+    alert(t('chat.characters.togglePlayerError'))
   }
 }
 
@@ -794,6 +846,7 @@ const loadGroupChats = async () => {
       lastMessageTime: new Date(),
       unreadCount: 0,
       memberCount: group.characterIds ? group.characterIds.length : 0,
+      characterIds: group.characterIds || [], // 添加角色ID列表
       messages: []
     }))
   } catch (error) {
@@ -808,27 +861,27 @@ const initializeDatabase = async () => {
   try {
     // 从本地存储获取当前世界ID
     const worldId = localStorage.getItem('current-world-id')
-    
+
     if (!worldId) {
       // 如果没有世界ID，跳转回首页
       await router.push('/')
       return
     }
-    
+
     // 连接到数据库
     const success = await connectToWorld(worldId)
-    
+
     console.log('数据库连接结果:', success)
     console.log('连接后 worldConfig:', worldConfig.value)
-    
+
     if (success) {
       // 更新世界信息
-      worldInfo.value.title = currentWorld.value || '未知世界'
-      
+      worldInfo.value.title = currentWorld.value
+
       // 加载聊天列表
       await loadPrivateChats()
       await loadGroupChats()
-      
+
       // 默认选择第一个私聊
       if (privateChats.value.length > 0) {
         await selectChat(privateChats.value[0].id, 'private')
@@ -849,12 +902,12 @@ const initializeDatabase = async () => {
 onMounted(async () => {
   checkMobile()
   window.addEventListener('resize', handleResize)
-  
+
   console.log('组件挂载前 worldConfig:', worldConfig.value)
-  
+
   // 初始化数据库连接
   await initializeDatabase()
-  
+
   console.log('数据库初始化后 worldConfig:', worldConfig.value)
 })
 

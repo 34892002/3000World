@@ -71,10 +71,20 @@
 
       <!-- 消息输入区域 -->
       <div v-if="selectedChat" class="message-input-container">
+        <!-- @提及建议 -->
+        <div v-if="showMentionSuggestions" class="mention-suggestions">
+          <div v-for="character in filteredSuggestions" :key="character.id" 
+               class="mention-item" 
+               @mousedown.prevent="selectMention(character.name)">
+            {{ character.name }}
+          </div>
+        </div>
         <div class="input-wrapper">
           <button class="input-action-btn">😊</button>
-          <input v-model="inputMessage" :placeholder="t('chat.input.placeholder')" class="message-input"
-            @keyup.enter="sendMessage" @keyup.enter.shift.exact.prevent />
+          <input ref="messageInput" v-model="inputMessage" :placeholder="t('chat.input.placeholder')" class="message-input"
+            @keyup.enter="sendMessage" @keyup.enter.shift.exact.prevent 
+            @input="handleMentionInput" @click="handleMentionInput" 
+            @keydown="handleKeyDown" @blur="hideMentionSuggestions" />
           <button class="input-action-btn">📎</button>
           <button class="send-btn" @click="sendMessage" :disabled="!inputMessage.trim()">
             <span>🚀</span>
@@ -134,6 +144,10 @@ const props = defineProps({
     type: Object,
     default: () => ({ userId: null, chatType: '' })
   },
+  characters: {
+    type: Array,
+    default: () => []
+  },
 })
 
 // 组件事件
@@ -148,6 +162,11 @@ const uploadedFiles = ref([])
 const messagesContainer = ref(null)
 const messageInput = ref(null)
 const fileInput = ref(null)
+
+// @提及功能相关
+const showMentionSuggestions = ref(false)
+const mentionStartIndex = ref(-1)
+const filteredSuggestions = ref([])
 
 /**
  * 是否可以发送消息
@@ -217,6 +236,10 @@ const handleKeyDown = (event) => {
     if (canSend.value) {
       sendMessage()
     }
+    hideMentionSuggestions()
+  }
+  if (event.key === 'Escape') {
+    hideMentionSuggestions()
   }
 }
 
@@ -318,6 +341,111 @@ const scrollToBottom = () => {
   })
 }
 
+/**
+ * 获取当前会话的参与者
+ */
+const getSessionParticipants = () => {
+  if (!selectedChat.value) {
+    return []
+  }
+  
+  // 如果是群聊，返回群聊中的所有角色
+  if (props.currentChat.chatType === 'group') {
+    // 获取群聊的角色ID列表
+    const characterIds = selectedChat.value.characterIds || selectedChat.value.members || []
+    
+    // 根据ID查找实际的角色对象
+    const participants = characterIds
+      .map(charId => props.characters.find(char => char.id === charId))
+      .filter(Boolean) // 过滤掉undefined的结果
+    
+    return participants
+  }
+  
+  // 如果是私聊，返回对话的角色
+  if (props.currentChat.chatType === 'private') {
+    const character = selectedChat.value.character || selectedChat.value.user || selectedChat.value
+    return character ? [character] : []
+  }
+  
+  return []
+}
+
+/**
+ * 处理@提及输入
+ */
+const handleMentionInput = () => {
+  // 私聊模式下不启用@提及功能
+  if (props.currentChat.chatType !== 'group') {
+    showMentionSuggestions.value = false
+    return
+  }
+  
+  const input = messageInput.value
+  if (!input) return
+  
+  const inputText = input.value
+  const cursorPosition = input.selectionStart || 0
+  const textBeforeCursor = inputText.substring(0, cursorPosition)
+  
+  // 检查是否有@提及
+  const mentionMatch = textBeforeCursor.match(/@([^\s]*)$/)
+  
+  if (mentionMatch) {
+    mentionStartIndex.value = mentionMatch.index
+    const searchTerm = mentionMatch[1].toLowerCase()
+    
+    // 获取会话参与者
+    const participants = getSessionParticipants()
+    
+    if (participants.length > 0) {
+      // 过滤匹配的角色
+      filteredSuggestions.value = participants.filter(p =>
+        p.name && p.name.toLowerCase().includes(searchTerm)
+      )
+      
+      showMentionSuggestions.value = filteredSuggestions.value.length > 0
+    } else {
+      showMentionSuggestions.value = false
+    }
+  } else {
+    showMentionSuggestions.value = false
+  }
+}
+
+/**
+ * 隐藏@提及建议
+ */
+const hideMentionSuggestions = () => {
+  setTimeout(() => {
+    showMentionSuggestions.value = false
+    mentionStartIndex.value = -1
+    filteredSuggestions.value = []
+  }, 150)
+}
+
+/**
+ * 选择@提及
+ */
+const selectMention = (name) => {
+  const input = messageInput.value
+  if (!input || mentionStartIndex.value === -1) return
+  
+  const currentText = inputMessage.value
+  const textBefore = currentText.substring(0, mentionStartIndex.value)
+  const textAfter = currentText.substring(input.selectionStart)
+  
+  inputMessage.value = `${textBefore}@${name} ${textAfter}`
+  hideMentionSuggestions()
+  
+  // 重新聚焦输入框并设置光标位置
+  nextTick(() => {
+    input.focus()
+    const newCursorPos = (textBefore + `@${name} `).length
+    input.setSelectionRange(newCursorPos, newCursorPos)
+  })
+}
+
 // 监听消息变化，自动滚动到底部
 watch(() => selectedChat.value?.messages, () => {
   scrollToBottom()
@@ -391,6 +519,21 @@ watch(() => props.isTyping, (newVal) => {
   .header-action-btn:hover,
   .input-action-btn:hover {
     background: rgba(71, 85, 105, 0.3);
+  }
+
+  // @提及建议深色主题样式
+  .mention-suggestions {
+    @include glass-effect(map.get(map.get($colors, dark), bg-secondary));
+    border: 1px solid map.get(map.get($colors, dark), border);
+    
+    .mention-item {
+      color: map.get(map.get($colors, dark), text-primary);
+      
+      &:hover {
+        background: rgba(59, 130, 246, 0.3);
+        color: map.get($colors, primary);
+      }
+    }
   }
 }
 
@@ -536,6 +679,7 @@ watch(() => props.isTyping, (newVal) => {
   border-radius: 50%;
   width: 40px;
   height: 40px;
+  color: map.get(map.get($colors, light), text-secondary);
 }
 
 // 消息容器
@@ -704,6 +848,7 @@ watch(() => props.isTyping, (newVal) => {
 
 // 消息输入区域
 .message-input-container {
+  position: relative; // 为绝对定位的mention-suggestions提供定位上下文
   padding: 20px;
   border-top: 1px solid map.get(map.get($colors, light), border);
   background: white;
@@ -769,6 +914,45 @@ watch(() => props.isTyping, (newVal) => {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+}
+
+// @提及建议样式
+.mention-suggestions {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  margin-bottom: 0px;
+  @include glass-effect(map.get(map.get($colors, light), bg-secondary));
+  border: 1px solid map.get(map.get($colors, light), border);
+  border-radius: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  
+  .mention-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    color: map.get(map.get($colors, light), text-primary);
+    font-size: 14px;
+    transition: all 0.2s ease;
+    border-radius: 6px;
+    margin: 4px;
+    
+    &:hover {
+      background: rgba(59, 130, 246, 0.1);
+      color: map.get($colors, primary);
+      transform: translateX(2px);
+    }
+    
+    &:first-child {
+      margin-top: 4px;
+    }
+    
+    &:last-child {
+      margin-bottom: 4px;
+    }
   }
 }
 </style>
