@@ -17,9 +17,14 @@
       </div>
 
       <!-- 应用标题 -->
-      <div class="app-header">
-        <h1 class="app-title">{{ t('messages.appTitle') }}</h1>
-        <p class="app-subtitle">{{ t('worldSelector.subtitle') }}</p>
+      <div class="app-header d-flex justify-center align-center">
+        <div class="logo w-33 h-33">
+          <img class="w-100 h-100" src="@/assets/logo.png" alt="" srcset="">
+        </div>
+        <div class="info">
+          <h1 class="app-title">{{ t('messages.appTitle') }}</h1>
+          <p class="app-subtitle">{{ t('worldSelector.subtitle') }}</p>
+        </div>
       </div>
 
       <!-- 世界选择卡片 -->
@@ -136,7 +141,7 @@
       <div class="footer-info">
         <p class="version-info">{{ t('worldSelector.version') }} 1.0.0</p>
         <div class="social-links">
-          <a href="#" class="social-link">📖 {{ t('worldSelector.git') }}</a>
+          <a href="https://github.com/34892002/3000World" target="_blank" class="social-link">📖 {{ t('worldSelector.git') }}</a>
           <a href="#" class="social-link">💬 {{ t('worldSelector.community') }}</a>
         </div>
       </div>
