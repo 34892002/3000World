@@ -89,7 +89,27 @@ export default {
             togglePlayerError: 'Failed to toggle main character status'
         },
         worldbook: {
-            title: 'Worldbook'
+            title: 'Worldbook',
+            createTitle: 'Create Worldbook Entry',
+            editTitle: 'Edit Worldbook Entry',
+            basicInfo: 'Basic Information',
+            nameLabel: 'Entry Name',
+            namePlaceholder: 'Enter entry name',
+            keywordsLabel: 'Keywords',
+            keywordsPlaceholder: 'Enter keywords, separated by commas',
+            contentLabel: 'Entry Content',
+            contentPlaceholder: 'Enter entry content...',
+            settingsTitle: 'Entry Settings',
+            isActive: 'Enable Entry',
+            isActiveHelp: 'Activate this entry in conversations',
+            priority: 'Priority',
+            priorityHelp: 'Higher values have higher priority',
+            deleteConfirm: 'Are you sure you want to delete this worldbook entry?',
+            deleteSuccess: 'Worldbook entry deleted successfully',
+            deleteError: 'Failed to delete worldbook entry',
+            saveSuccess: 'Worldbook entry saved successfully',
+            saveError: 'Failed to save worldbook entry',
+            validationError: 'Please fill in the name and content fields'
         },
         worldSettings: {
             title: 'World Settings',

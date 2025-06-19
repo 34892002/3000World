@@ -25,6 +25,11 @@
       :model-notifications="notificationsEnabled" @close="showSettings = false" @language-change="changeLanguage"
       @theme-change="toggleTheme" @notification-change="handleNotificationChange" />
 
+    <!-- 世界之书编辑器 -->
+    <WorldbookEditor :visible="showWorldbookEditor" :worldbook="editingWorldbook" 
+      @close="closeWorldbookEditor" @saved="saveWorldbookEntry" @deleted="deleteWorldbookEntry" />
+
+
   </div>
 </template>
 
@@ -40,6 +45,7 @@ import ChatArea from '@/components/ChatArea.vue'
 import GroupEditor from '@/components/GroupEditor.vue'
 import CharacterEditor from '@/components/CharacterEditor.vue'
 import SettingsDialog from '@/components/SettingsDialog.vue'
+import WorldbookEditor from '@/components/WorldbookEditor.vue'
 
 // 国际化和路由
 const { t, locale } = useI18n()
@@ -96,6 +102,10 @@ const editingCharacter = ref({
   greeting: '',
   isPlayer: false
 })
+
+// 世界之书编辑器相关
+const showWorldbookEditor = ref(false)
+const editingWorldbook = ref(null)
 
 // 设置相关
 const selectedLanguage = ref('zhHans')
@@ -511,6 +521,8 @@ const showCreateDialog = (type) => {
     openGroupEditor()
   } else if (type === 'character') {
     openCharacterEditor()
+  } else if (type === 'worldbook') {
+    openWorldbookEditor()
   } else {
     // 其他类型的创建对话框逻辑
     console.log('创建:', type)
@@ -522,9 +534,11 @@ const showCreateDialog = (type) => {
  * @param {number} entryId - 条目ID
  */
 const selectWorldbookEntry = (entryId) => {
-  // 实现世界设定选择逻辑
-  console.log('选择世界设定:', entryId)
-  // TODO: 可以在这里添加显示世界设定详情或编辑的逻辑
+  const worldbookEntry = dbWorldbooks.value.find(entry => entry.id === entryId)
+  if (worldbookEntry) {
+    editingWorldbook.value = worldbookEntry
+    showWorldbookEditor.value = true
+  }
 }
 
 /**
@@ -782,6 +796,57 @@ const changeLanguage = (newLanguage) => {
       'en': 'en'
     }
     locale.value = localeMap[newLanguage] || newLanguage
+  }
+}
+
+/**
+ * 打开世界之书编辑器
+ * @param {Object} worldbook - 要编辑的世界之书条目，如果为空则创建新条目
+ */
+const openWorldbookEditor = (worldbook = null) => {
+  editingWorldbook.value = worldbook
+  showWorldbookEditor.value = true
+}
+
+/**
+ * 关闭世界之书编辑器
+ */
+const closeWorldbookEditor = () => {
+  showWorldbookEditor.value = false
+  editingWorldbook.value = null
+}
+
+/**
+ * 保存世界之书条目
+ * @param {Object} worldbookData - 世界之书数据
+ */
+const saveWorldbookEntry = async (worldbookData) => {
+  try {
+    // 刷新数据以确保UI更新
+    await refreshData()
+    
+    // 显示成功消息
+    console.log(t('chat.worldbook.saveSuccess'))
+  } catch (error) {
+    console.error('保存世界之书条目失败:', error)
+    console.error(t('chat.worldbook.saveError'))
+  }
+}
+
+/**
+ * 删除世界之书条目
+ * @param {number} entryId - 条目ID
+ */
+const deleteWorldbookEntry = async (entryId) => {
+  try {
+    // 刷新数据以确保UI更新
+    await refreshData()
+    
+    // 显示成功消息
+    console.log(t('chat.worldbook.deleteSuccess'))
+  } catch (error) {
+    console.error('删除世界之书条目失败:', error)
+    console.error(t('chat.worldbook.deleteError'))
   }
 }
 

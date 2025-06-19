@@ -89,7 +89,27 @@ export default {
             togglePlayerError: '切换主角状态失败'
         },
         worldbook: {
-            title: '世界之书'
+            title: '世界之书',
+            createTitle: '创建世界之书条目',
+            editTitle: '编辑世界之书条目',
+            basicInfo: '基本信息',
+            nameLabel: '条目名称',
+            namePlaceholder: '请输入条目名称',
+            keywordsLabel: '关键词',
+            keywordsPlaceholder: '请输入关键词，用逗号分隔',
+            contentLabel: '条目内容',
+            contentPlaceholder: '请输入条目内容...',
+            settingsTitle: '条目设置',
+            isActive: '启用条目',
+            isActiveHelp: '在对话中激活此条目',
+            priority: '优先级',
+            priorityHelp: '数值越高优先级越高',
+            deleteConfirm: '确定要删除这个世界之书条目吗？',
+            deleteSuccess: '世界之书条目删除成功',
+            deleteError: '删除世界之书条目失败',
+            saveSuccess: '世界之书条目保存成功',
+            saveError: '保存世界之书条目失败',
+            validationError: '请填写条目名称和内容'
         },
         worldSettings: {
             title: '世界设置',

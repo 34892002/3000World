@@ -22,13 +22,13 @@
             {{ t('chat.settings.darkTheme') }}
           </label>
         </div>
-        <div class="setting-group">
+        <!-- <div class="setting-group">
           <label class="switch-label">
             <input type="checkbox" v-model="notificationsEnabled" @change="handleNotificationChange" />
             <span class="switch"></span>
             {{ t('chat.settings.notifications') }}
           </label>
-        </div>
+        </div> -->
       </div>
       <div class="modal-footer">
         <button class="btn-secondary" @click="$emit('close')">
