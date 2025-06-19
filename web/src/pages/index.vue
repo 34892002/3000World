@@ -24,6 +24,21 @@
 
       <!-- 世界选择卡片 -->
       <div class="world-selector-card">
+        <!-- 数据库连接状态 -->
+        <div v-if="isConnected" class="world-section status-section">
+          <div class="connection-status connected">
+            <span class="status-icon">✅</span>
+            <span>{{ t('worldSelector.connectedTo') }}: {{ currentWorld }}</span>
+          </div>
+        </div>
+        
+        <div v-if="dbLoading" class="world-section status-section">
+          <div class="connection-status loading">
+            <span class="status-icon">⏳</span>
+            <span>{{ t('worldSelector.loading') }}...</span>
+          </div>
+        </div>
+
         <!-- 选择现有世界 -->
         <div v-if="existingWorlds.length > 0" class="world-section">
           <h3 class="section-title">
@@ -39,11 +54,31 @@
             </select>
             <button 
               @click="enterWorld" 
-              :disabled="!selectedWorldId"
+              :disabled="!selectedWorldId || dbLoading"
               class="btn btn-primary"
             >
               <span class="btn-icon">🚀</span>
               {{ t('worldSelector.enterWorld') }}
+            </button>
+          </div>
+          
+          <!-- 世界管理按钮 -->
+          <div v-if="selectedWorldId" class="world-actions">
+            <button 
+              @click="exportSelectedWorld" 
+              :disabled="dbLoading"
+              class="btn btn-outline btn-sm"
+            >
+              <span class="btn-icon">📤</span>
+              {{ t('worldSelector.export') }}
+            </button>
+            <button 
+              @click="deleteSelectedWorld" 
+              :disabled="dbLoading"
+              class="btn btn-danger btn-sm"
+            >
+              <span class="btn-icon">🗑️</span>
+              {{ t('worldSelector.delete') }}
             </button>
           </div>
         </div>
@@ -63,7 +98,7 @@
             />
             <button 
               @click="createWorld" 
-              :disabled="!newWorldName.trim()"
+              :disabled="!newWorldName.trim() || dbLoading"
               class="btn btn-secondary"
             >
               <span class="btn-icon">🎨</span>
@@ -110,13 +145,28 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import { useDatabase } from '@/composables/useDatabase'
 
 // 国际化和路由
 const { t, locale } = useI18n()
 const router = useRouter()
+
+// 数据库功能
+const {
+  isConnected,
+  currentWorld,
+  loading: dbLoading,
+  error: dbError,
+  connectToWorld,
+  getAvailableWorlds,
+  disconnect,
+  exportWorld,
+  importWorld,
+  clearError
+} = useDatabase()
 
 // 响应式数据
 const existingWorlds = ref([])
@@ -125,6 +175,7 @@ const newWorldName = ref('')
 const importStatus = ref('')
 const importStatusClass = ref('')
 const fileInput = ref(null)
+const showAdvancedOptions = ref(false)
 
 // 语言选项
 const languages = ref([
@@ -159,11 +210,17 @@ const enterWorld = async () => {
   if (!selectedWorldId.value) return
   
   try {
-    // 保存当前世界ID到本地存储
-    localStorage.setItem('current-world-id', selectedWorldId.value)
-    
-    // 跳转到聊天页面
-    await router.push('/chat')
+    // 连接到选中的世界数据库
+    const success = await connectToWorld(selectedWorldId.value)
+    if (success) {
+      // 保存当前世界ID到本地存储
+      localStorage.setItem('current-world-id', selectedWorldId.value)
+      
+      // 跳转到聊天页面
+      await router.push('/chat')
+    } else {
+      console.error('连接世界失败')
+    }
   } catch (error) {
     console.error('进入世界失败:', error)
   }
@@ -176,29 +233,25 @@ const createWorld = async () => {
   if (!newWorldName.value.trim()) return
   
   try {
-    const newWorld = {
-      id: Date.now().toString(),
-      name: newWorldName.value.trim(),
-      createdAt: new Date(),
-      characters: [],
-      groups: [],
-      worldbook: [],
-      config: {
-        language: locale.value,
-        theme: 'light'
-      }
+    const worldName = newWorldName.value.trim()
+    
+    // 连接到新世界数据库（会自动创建）
+    const success = await connectToWorld(worldName)
+    if (success) {
+      // 保存当前世界名称到本地存储
+      localStorage.setItem('current-world-id', worldName)
+      
+      // 清空输入框
+      newWorldName.value = ''
+      
+      // 重新加载世界列表
+      await loadExistingWorlds()
+      
+      // 跳转到聊天页面
+      await router.push('/chat')
+    } else {
+      console.error('创建世界失败')
     }
-    
-    // 保存到本地存储
-    const worlds = JSON.parse(localStorage.getItem('worlds') || '[]')
-    worlds.push(newWorld)
-    localStorage.setItem('worlds', JSON.stringify(worlds))
-    
-    // 设置为当前世界
-    localStorage.setItem('current-world-id', newWorld.id)
-    
-    // 跳转到聊天页面
-    await router.push('/chat')
   } catch (error) {
     console.error('创建世界失败:', error)
   }
@@ -219,31 +272,31 @@ const handleFileSelect = async (event) => {
     const worldData = JSON.parse(text)
     
     // 验证世界数据格式
-    if (!worldData.name) {
+    if (!worldData.worldName && !worldData.name) {
       throw new Error('无效的世界文件格式')
     }
     
-    const importedWorld = {
-      id: Date.now().toString(),
-      name: worldData.name,
-      data: worldData,
-      createdAt: new Date()
+    const worldName = worldData.worldName || worldData.name
+    
+    // 使用数据库导入功能
+    const success = await importWorld(worldData, worldName)
+    
+    if (success) {
+      // 保存当前世界名称到本地存储
+      localStorage.setItem('current-world-id', worldName)
+      
+      // 重新加载世界列表
+      await loadExistingWorlds()
+      
+      importStatus.value = t('worldSelector.importSuccess')
+      importStatusClass.value = 'success'
+      
+      setTimeout(async () => {
+        await router.push('/chat')
+      }, 1500)
+    } else {
+      throw new Error('导入失败')
     }
-    
-    // 保存到本地存储
-    const worlds = JSON.parse(localStorage.getItem('worlds') || '[]')
-    worlds.push(importedWorld)
-    localStorage.setItem('worlds', JSON.stringify(worlds))
-    
-    // 设置为当前世界
-    localStorage.setItem('current-world-id', importedWorld.id)
-    
-    importStatus.value = t('worldSelector.importSuccess')
-    importStatusClass.value = 'success'
-    
-    setTimeout(async () => {
-      await router.push('/chat')
-    }, 1500)
     
   } catch (error) {
     console.error('导入世界失败:', error)
@@ -258,10 +311,13 @@ const handleFileSelect = async (event) => {
 /**
  * 加载现有世界
  */
-const loadExistingWorlds = () => {
+const loadExistingWorlds = async () => {
   try {
-    const worlds = JSON.parse(localStorage.getItem('worlds') || '[]')
-    existingWorlds.value = worlds
+    const worldNames = await getAvailableWorlds()
+    existingWorlds.value = worldNames.map(name => ({
+      id: name,
+      name: name
+    }))
   } catch (error) {
     console.error('加载世界列表失败:', error)
     existingWorlds.value = []
@@ -279,10 +335,82 @@ const initializeLanguage = () => {
 }
 
 // 组件挂载时初始化
-onMounted(() => {
+onMounted(async () => {
   initializeLanguage()
-  loadExistingWorlds()
+  await loadExistingWorlds()
 })
+
+// 监听数据库错误
+watch(dbError, (newError) => {
+  if (newError) {
+    importStatus.value = newError
+    importStatusClass.value = 'error'
+    // 3秒后清除错误
+    setTimeout(() => {
+      clearError()
+      importStatus.value = ''
+      importStatusClass.value = ''
+    }, 3000)
+  }
+})
+
+/**
+ * 导出当前选中的世界
+ */
+const exportSelectedWorld = async () => {
+  if (!selectedWorldId.value) return
+  
+  try {
+    // 先连接到世界
+    const success = await connectToWorld(selectedWorldId.value)
+    if (success) {
+      const data = await exportWorld()
+      if (data) {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `${selectedWorldId.value}_export.json`
+        a.click()
+        URL.revokeObjectURL(url)
+      }
+    }
+  } catch (error) {
+    console.error('导出世界失败:', error)
+  }
+}
+
+/**
+ * 删除选中的世界
+ */
+const deleteSelectedWorld = async () => {
+  if (!selectedWorldId.value) return
+  
+  if (confirm(t('worldSelector.confirmDelete', { worldName: selectedWorldId.value }))) {
+    try {
+      // 删除数据库
+      await indexedDB.deleteDatabase(`3000World_${selectedWorldId.value}`)
+      
+      // 重新加载世界列表
+      await loadExistingWorlds()
+      
+      // 清空选择
+      selectedWorldId.value = ''
+      
+      importStatus.value = t('worldSelector.deleteSuccess')
+      importStatusClass.value = 'success'
+      
+      setTimeout(() => {
+        importStatus.value = ''
+        importStatusClass.value = ''
+      }, 2000)
+    } catch (error) {
+      console.error('删除世界失败:', error)
+      importStatus.value = t('worldSelector.deleteError')
+      importStatusClass.value = 'error'
+    }
+  }
+}
 </script>
 
 <style scoped lang="scss">
@@ -446,6 +574,44 @@ onMounted(() => {
     border-top: 1px solid rgba(0, 0, 0, 0.08);
     padding-top: 32px;
   }
+  
+  &.status-section {
+    margin-bottom: 20px;
+  }
+}
+
+// 连接状态
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: $border-radius-md;
+  font-weight: 500;
+  
+  &.connected {
+    background: rgba(16, 185, 129, 0.1);
+    color: map.get($colors, success);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+  }
+  
+  &.loading {
+    background: rgba(59, 130, 246, 0.1);
+    color: map.get($colors, info);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+  }
+}
+
+.status-icon {
+  font-size: 16px;
+}
+
+// 世界管理按钮
+.world-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  justify-content: flex-end;
 }
 
 .section-title {
@@ -540,6 +706,33 @@ onMounted(() => {
     background: $success-gradient;
     color: white;
     box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+  }
+  
+  &.btn-outline {
+    background: transparent;
+    color: map.get($colors, primary);
+    border: 2px solid map.get($colors, primary);
+    box-shadow: none;
+    
+    &:hover:not(:disabled) {
+      background: map.get($colors, primary);
+      color: white;
+    }
+  }
+  
+  &.btn-danger {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+  }
+  
+  &.btn-sm {
+    padding: 8px 16px;
+    font-size: 14px;
+    
+    .btn-icon {
+      font-size: 14px;
+    }
   }
   
   &.full-width {
@@ -668,6 +861,28 @@ onMounted(() => {
   
   .world-section.border-top {
     border-top: 1px solid map.get(map.get($colors, dark), border);
+  }
+  
+  .connection-status {
+    &.connected {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    
+    &.loading {
+      background: rgba(59, 130, 246, 0.15);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+  }
+  
+  .btn.btn-outline {
+    color: map.get($colors, primary);
+    border-color: map.get($colors, primary);
+    
+    &:hover:not(:disabled) {
+      background: map.get($colors, primary);
+      color: white;
+    }
   }
 }
 </style>

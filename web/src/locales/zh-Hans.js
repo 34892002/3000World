@@ -136,7 +136,17 @@ export default {
         createFailed: '创建失败',
         importFailed: '导入失败',
         invalidFile: '无效的文件格式',
-        enterWorld: '进入世界'
+        enterWorld: '进入世界',
+        chooseWorld: '选择世界...',
+        connectedTo: '已连接到世界',
+        loading: '加载中',
+        export: '导出',
+        delete: '删除',
+        confirmDelete: '确定要删除世界 "{worldName}" 吗？此操作不可撤销！',
+        deleteSuccess: '世界删除成功',
+        deleteError: '删除世界失败',
+        importSuccess: '世界导入成功！',
+        importError: '导入世界失败'
     },
     api: {
         error: {

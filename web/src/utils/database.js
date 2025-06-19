@@ -12,11 +12,63 @@ class Database {
   }
 
   /**
+   * 验证世界名称是否合法
+   * @param {string} worldName - 世界名称
+   * @returns {Object} 验证结果 {valid: boolean, error: string}
+   */
+  validateWorldName(worldName) {
+    // 检查是否为空或未定义
+    if (!worldName || typeof worldName !== 'string') {
+      return {
+        valid: false,
+        error: 'Must be a string'
+      };
+    }
+    
+    // 检查长度限制（最大20字符）
+    if (worldName.length === 0) {
+      return {
+        valid: false,
+        error: 'cannot be empty'
+      };
+    }
+    
+    if (worldName.length > 20) {
+      return {
+        valid: false,
+        error: `Maximum 20 characters, length: ${worldName.length}`
+      };
+    }
+    
+    // 允许各国文字和数字，禁止所有符号
+    // \p{L} 匹配所有Unicode字母字符（包括中文、英文、日文、韩文、阿拉伯文等）
+    // \p{N} 匹配所有Unicode数字字符
+    const validChars = /^[\p{L}\p{N}]+$/u;
+    if (!validChars.test(worldName)) {
+      return {
+        valid: false,
+        error: 'symbols or special characters'
+      };
+    }
+    
+    return {
+      valid: true,
+      error: null
+    };
+  }
+
+  /**
    * 初始化数据库连接
    * @param {string} worldName - 世界名称
    * @returns {Promise<IDBDatabase>}
    */
   async initDB(worldName) {
+    // 验证世界名称
+    const validation = this.validateWorldName(worldName);
+    if (!validation.valid) {
+      throw new Error(`Name verification failed: ${validation.error}`);
+    }
+    
     const dbName = `${this.dbPrefix}${worldName}`;
     this.dbName = dbName;
     

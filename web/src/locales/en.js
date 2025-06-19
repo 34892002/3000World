@@ -135,7 +135,17 @@ export default {
         createFailed: 'Creation failed',
         importFailed: 'Import failed',
         invalidFile: 'Invalid file format',
-        enterWorld: 'Enter World'
+        enterWorld: 'Enter World',
+        chooseWorld: 'Choose world...',
+        connectedTo: 'Connected to world',
+        loading: 'Loading',
+        export: 'Export',
+        delete: 'Delete',
+        confirmDelete: 'Are you sure you want to delete world "{worldName}"? This action cannot be undone!',
+        deleteSuccess: 'World deleted successfully',
+        deleteError: 'Failed to delete world',
+        importSuccess: 'World imported successfully!',
+        importError: 'Failed to import world'
     },
     api: {
         error: {
