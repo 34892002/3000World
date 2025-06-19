@@ -2,7 +2,8 @@ export default {
     messages: { // 页面通用部分
         appTitle: '3000世界',
         language: '语言',
-        welcome: '欢迎使用本应用程序！'
+        welcome: '欢迎使用本应用程序！',
+        think: '努力构思中',
     },
     chat: {
         user: {
@@ -20,7 +21,7 @@ export default {
             private: '私聊',
             group: '群组',
             characters: '角色',
-            worldbook: '世界设定集',
+            worldbook: '世界之书',
             settings: '设置',
         },
         search: {
@@ -80,7 +81,7 @@ export default {
             saveSuccess: '角色保存成功'
         },
         worldbook: {
-            title: '世界设定集'
+            title: '世界之书'
         },
         worldSettings: {
             title: '世界设置',

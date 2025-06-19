@@ -17,7 +17,7 @@ export function useDatabase() {
   const characters = ref([])
   const groups = ref([])
   const worldbooks = ref([])
-  const config = reactive({
+  const config = ref({
     apiKey: '',
     apiUrl: '',
     model: ''
@@ -99,7 +99,11 @@ export function useDatabase() {
       characters.value = charsData
       groups.value = groupsData
       worldbooks.value = worldbooksData
-      Object.assign(config, configData)
+      
+      // 调试配置加载
+      console.log('加载的配置数据:', configData)
+      config.value = { ...config.value, ...configData }
+      console.log('合并后的配置:', config.value)
       
     } catch (err) {
       handleError(err, 'loadAllData')
@@ -363,7 +367,7 @@ export function useDatabase() {
       clearError()
       
       await database.saveWorldConfig(newConfig)
-      Object.assign(config, newConfig)
+      config.value = { ...config.value, ...newConfig }
       
       return true
     } catch (err) {
@@ -473,7 +477,7 @@ export function useDatabase() {
     characters.value = []
     groups.value = []
     worldbooks.value = []
-    Object.assign(config, { apiKey: '', apiUrl: '', model: '' })
+    config.value = { apiKey: '', apiUrl: '', model: '' }
   }
   
   /**

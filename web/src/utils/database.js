@@ -420,7 +420,7 @@ class Database {
   /**
    * 保存聊天消息
    * @param {Object} message - 消息对象
-   * @returns {Promise<number>} 消息ID
+   * @returns {Promise<Object>} 完整的消息对象（包含ID）
    */
   async saveMessage(message) {
     const messageData = {
@@ -430,7 +430,11 @@ class Database {
     
     return new Promise(resolve => {
       this.getStore('chat_history', 'readwrite').add(messageData).onsuccess = e => {
-        resolve(e.target.result);
+        const savedMessage = {
+          ...messageData,
+          id: e.target.result
+        };
+        resolve(savedMessage);
       };
     });
   }

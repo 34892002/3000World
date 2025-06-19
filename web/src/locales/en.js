@@ -2,7 +2,8 @@ export default {
     messages: { // 页面通用部分
         appTitle: '3000World',
         language: 'Language',
-        welcome: 'Welcome to this application！'
+        welcome: 'Welcome to this application！',
+        think: 'Mental gears turning',
     },
     chat: {
         user: {

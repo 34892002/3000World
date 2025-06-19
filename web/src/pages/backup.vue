@@ -143,7 +143,7 @@
             </div>
           </div>
   
-          <!-- 世界设定集 -->
+          <!-- 世界之书 -->
           <div v-if="activeTab === 'worldbook'" class="content-section">
             <div class="section-header">
               <h4>{{ t('chat.worldbook.title') }}</h4>

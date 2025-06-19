@@ -6,7 +6,7 @@
         <span class="hamburger">☰</span>
       </button>
       <div v-if="selectedChat" class="header-chat-info">
-        <img :src="selectedChat.avatar" :alt="selectedChat.name" class="header-avatar" />
+        <img :src="selectedChat.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedChat.name}`" :alt="selectedChat.name" class="header-avatar" />
         <div class="header-details">
           <h3>{{ selectedChat.name }}</h3>
           <p v-if="currentChat.chatType === 'group'">{{ selectedChat.memberCount }} {{ t('chat.group.membersLabel') }}
@@ -23,7 +23,8 @@
       <!-- 桌面端聊天头部 -->
       <div v-if="!isMobile && selectedChat" class="chat-header">
         <div class="chat-header-info">
-          <img :src="selectedChat.avatar" :alt="selectedChat.name" class="chat-header-avatar" />
+          <img v-if="currentChat.chatType === 'group'" :src="selectedChat.avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${selectedChat.name}`" :alt="selectedChat.name" class="chat-header-avatar" />
+          <img v-else :src="selectedChat.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedChat.name}`" :alt="selectedChat.name" class="chat-header-avatar" />
           <div class="chat-header-details">
             <h2>{{ selectedChat.name }}</h2>
             <p v-if="currentChat.chatType === 'group'" class="member-info">
@@ -42,13 +43,16 @@
       <!-- 消息列表 -->
       <div class="messages-container" ref="messagesContainer" v-if="selectedChat">
         <div v-for="message in selectedChat.messages" :key="message.id"
-          :class="['message-wrapper', { 'message-sent': message.isSent, 'message-received': !message.isSent }]">
+          :class="['message-wrapper', { 'message-sent': message.isSent, 'message-received': !message.isSent, 'message-thinking': message.isThinking }]">
           <div v-if="!message.isSent && currentChat.chatType === 'group'" class="message-sender">
             {{ message.sender }}
           </div>
-          <div class="message-bubble">
-            <div class="message-content">{{ message.content }}</div>
-            <div class="message-time">
+          <div class="message-bubble text-pre-wrap" :class="{ 'thinking-bubble': message.isThinking }">
+            <div class="message-content">
+              {{ message.content }}
+              <span v-if="message.isThinking" class="thinking-dots">...</span>
+            </div>
+            <div class="message-time" v-if="!message.isThinking">
               {{ formatMessageTime(message.timestamp) }}
               <span v-if="message.isSent" class="message-status">
                 {{ message.isRead ? '✓✓' : '✓' }}
@@ -141,7 +145,7 @@ const emit = defineEmits([
 // 响应式数据
 const inputMessage = ref('')
 const uploadedFiles = ref([])
-const chatContent = ref(null)
+const messagesContainer = ref(null)
 const messageInput = ref(null)
 const fileInput = ref(null)
 
@@ -248,6 +252,9 @@ const sendMessage = () => {
   // 清空输入
   inputMessage.value = ''
   uploadedFiles.value = []
+  
+  // 发送消息后滚动到底部
+  scrollToBottom()
 }
 
 /**
@@ -305,14 +312,14 @@ const removeFile = (index) => {
  */
 const scrollToBottom = () => {
   nextTick(() => {
-    if (chatContent.value) {
-      chatContent.value.scrollTop = chatContent.value.scrollHeight
+    if (messagesContainer.value) {
+      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
     }
   })
 }
 
 // 监听消息变化，自动滚动到底部
-watch(() => props.messages, () => {
+watch(() => selectedChat.value?.messages, () => {
   scrollToBottom()
 }, { deep: true })
 
@@ -622,6 +629,44 @@ watch(() => props.isTyping, (newVal) => {
 
 .message-status {
   color: map.get($colors, success);
+}
+
+// 思考中消息样式
+.message-thinking .message-bubble {
+  opacity: 0.8;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.thinking-bubble {
+  background: #f3f4f6 !important;
+  color: #6b7280 !important;
+  font-style: italic;
+}
+
+.thinking-dots {
+  animation: thinking 1.4s ease-in-out infinite;
+  font-weight: bold;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes thinking {
+  0%, 20% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  80%, 100% {
+    opacity: 0;
+  }
 }
 
 // 空状态

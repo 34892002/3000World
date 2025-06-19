@@ -10,5 +10,16 @@
 // );
 
 html {
-    overflow-y: auto;
+    overflow-y: auto !important;
 }
+
+.line-3-ellipsis {
+    display: -moz-box;
+    display: -webkit-box;
+    -moz-box-orient: vertical;
+    -webkit-box-orient: vertical;
+    -moz-line-clamp: 3;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }

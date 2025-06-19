@@ -6,7 +6,8 @@
     <!-- 侧边栏 -->
     <Sidebar :sidebarOpen="sidebarOpen" :currentChat="currentChat" :worldInfo="worldInfo"
       :characters="characters" :worldbook="worldbook" :privateChats="privateChats" @select-chat="selectChat"
-      :groupChats="groupChats" @open-settings="showSettings = true" />
+      :groupChats="groupChats" @open-settings="showSettings = true" @create-dialog="showCreateDialog"
+      @select-worldbook-entry="selectWorldbookEntry" />
 
     <!-- 主聊天区域 -->
     <ChatArea :isMobile="isMobile" :currentChat="currentChat" :privateChats="privateChats" :groupChats="groupChats"
@@ -28,8 +29,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, onUnmounted } from 'vue'
+import { ref, onMounted, nextTick, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
+import { useDatabase } from '@/composables/useDatabase'
+import { useAIApi } from '@/api/model'
 
 import Sidebar from '@/components/Sidebar.vue'
 import ChatArea from '@/components/ChatArea.vue'
@@ -37,8 +41,31 @@ import GroupEditor from '@/components/GroupEditor.vue'
 import CharacterEditor from '@/components/CharacterEditor.vue'
 import SettingsDialog from '@/components/SettingsDialog.vue'
 
-// 国际化
+// 国际化和路由
 const { t, locale } = useI18n()
+const router = useRouter()
+
+// 数据库功能
+const {
+  currentWorld,
+  error: dbError,
+  characters: dbCharacters,
+  groups: dbGroups,
+  worldbooks: dbWorldbooks,
+  config,
+  connectToWorld,
+  getChatHistory,
+  saveMessage,
+  saveCharacter: dbSaveCharacter,
+  deleteCharacter: dbDeleteCharacter,
+  saveGroup: dbSaveGroup,
+} = useDatabase()
+
+// 为了保持兼容性，创建 worldConfig 的引用
+const worldConfig = config
+
+// AI接口功能
+const { isLoading: aiLoading, cleanAIResponse, getAIResponse } = useAIApi()
 
 // 响应式数据
 const sidebarOpen = ref(false)
@@ -76,119 +103,21 @@ const notificationsEnabled = ref(true)
 
 // 世界信息
 const worldInfo = ref({
-  title: '青青世界',
-  avatar: 'https://api.dicebear.com/9.x/icons/svg?seed=project',
+  title: currentWorld.value,
+  avatar: '',
   description: '一个充满幻想的虚拟世界等待着你去探险'
 })
 
-// 模拟数据
-const worldbook = ref([
-  {
-    id: 1,
-    title: '世界背景',
-    description: '这是一个科幻世界的设定'
-  },
-  {
-    id: 2,
-    title: '角色关系',
-    description: '主要角色之间的关系网'
-  }
-])
+// 直接使用数据库中的响应式数据
+const worldbook = dbWorldbooks
+const characters = dbCharacters
 
-const characters = ref([
-  {
-    id: 1,
-    name: '艾莉丝',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alice',
-    description: '一个友善的AI助手'
-  },
-  {
-    id: 2,
-    name: '小明',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=ming',
-    description: '热情的朋友'
-  }
-])
+// 聊天会话缓存
+const chatSessions = ref(new Map())
 
-const privateChats = ref([
-  {
-    id: 1,
-    name: '艾莉丝',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alice',
-    lastMessage: '你好，最近怎么样？',
-    lastMessageTime: new Date(Date.now() - 1000 * 60 * 30),
-    unreadCount: 2,
-    messages: [
-      {
-        id: 1,
-        content: '你好！很高兴认识你！',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60),
-        isSent: false,
-        isRead: true
-      },
-      {
-        id: 2,
-        content: '你好，最近怎么样？',
-        timestamp: new Date(Date.now() - 1000 * 60 * 30),
-        isSent: false,
-        isRead: false
-      }
-    ]
-  },
-  {
-    id: 2,
-    name: '小明',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=ming',
-    lastMessage: '明天见面吧',
-    lastMessageTime: new Date(Date.now() - 1000 * 60 * 60 * 2),
-    unreadCount: 0,
-    messages: [
-      {
-        id: 1,
-        content: '明天有空吗？',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3),
-        isSent: true,
-        isRead: true
-      },
-      {
-        id: 2,
-        content: '明天见面吧',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-        isSent: false,
-        isRead: true
-      }
-    ]
-  }
-])
-
-const groupChats = ref([
-  {
-    id: 3,
-    name: '项目讨论组',
-    avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=project',
-    lastMessage: '王五: 会议安排在下午3点',
-    lastMessageTime: new Date(Date.now() - 1000 * 60 * 15),
-    unreadCount: 5,
-    memberCount: 8,
-    messages: [
-      {
-        id: 1,
-        content: '大家好，今天的会议安排在下午3点',
-        timestamp: new Date(Date.now() - 1000 * 60 * 20),
-        isSent: false,
-        isRead: true,
-        sender: '王五'
-      },
-      {
-        id: 2,
-        content: '收到，我会准时参加',
-        timestamp: new Date(Date.now() - 1000 * 60 * 15),
-        isSent: true,
-        isRead: true
-      }
-    ]
-  }
-])
+// 聊天数据（从数据库加载）
+const privateChats = ref([])
+const groupChats = ref([])
 
 // 方法
 /**
@@ -203,38 +132,371 @@ const checkMobile = () => {
  * @param {number} chatId - 聊天ID
  * @param {string} type - 聊天类型
  */
-const selectChat = (chatId, type) => {
+const selectChat = async (chatId, type) => {
   currentChat.value = { userId: chatId, chatType: type }
+  
+  // 加载聊天历史
+  await loadChatHistory(chatId, type)
+  
   if (isMobile.value) {
     sidebarOpen.value = false
   }
 }
 
-const sendMessage = (message) => {
-  if (!message.trim()) return
-  const messageData = {
-    id: 1, // 可以扮演任何角色
+/**
+ * 加载聊天历史
+ * @param {number} chatId - 聊天ID
+ * @param {string} type - 聊天类型
+ */
+const loadChatHistory = async (chatId, type) => {
+  try {
+    const sessionId = `${type}_${chatId}`
+    
+    // 检查缓存
+    if (chatSessions.value.has(sessionId)) {
+      return chatSessions.value.get(sessionId)
+    }
+    
+    // 从数据库加载
+    const rawMessages = await getChatHistory(sessionId)
+    
+    // 为历史消息添加必要的显示属性
+    const messages = rawMessages.map(msg => ({
+      ...msg,
+      isSent: msg.role === 'user' || (msg.role === 'char' && msg.characterId && dbCharacters.value.find(char => char.id === msg.characterId && char.isPlayer)),
+      isRead: msg.role !== 'user'
+    }))
+    
+    // 缓存聊天历史
+    chatSessions.value.set(sessionId, messages)
+    
+    // 更新对应的聊天对象
+    if (type === 'private') {
+      const chat = privateChats.value.find(c => c.id === chatId)
+      if (chat) {
+        chat.messages = messages
+      }
+    } else if (type === 'group') {
+      const chat = groupChats.value.find(c => c.id === chatId)
+      if (chat) {
+        chat.messages = messages
+      }
+    }
+    
+    return messages
+  } catch (error) {
+    console.error('加载聊天历史失败:', error)
+    return []
+  }
+}
+
+const sendMessage = async (message) => {
+  if (!message.trim() || !currentChat.value.userId) return
+  
+  const sessionId = `${currentChat.value.chatType}_${currentChat.value.userId}`
+  
+  // 确定消息发送者角色
+  const playerCharacter = dbCharacters.value.find(char => char.isPlayer)
+  const isPlayerSpeaking = !!playerCharacter
+  const role = isPlayerSpeaking ? 'char' : 'user'
+  const characterName = isPlayerSpeaking ? playerCharacter.name : null
+  const characterId = isPlayerSpeaking ? playerCharacter.id : null
+  
+  // 创建用户消息数据
+  const userMessageData = {
     content: message,
     timestamp: new Date(),
+    role: role,
+    characterId: characterId,
+    characterName: characterName,
+    sessionId: sessionId,
     isSent: true,
-    isRead: true
+    isRead: false
   }
+  
+  try {
+    // 保存用户消息到数据库
+    const savedUserMessage = await saveMessage(userMessageData)
+    
+    if (savedUserMessage) {
+      // 更新本地缓存
+      const cachedMessages = chatSessions.value.get(sessionId) || []
+      cachedMessages.push(savedUserMessage)
+      chatSessions.value.set(sessionId, cachedMessages)
+      
+      // 更新聊天列表
+      updateChatList(sessionId, cachedMessages, message)
+      
+      // 添加"思考中..."状态消息
+      const thinkingMessage = {
+        id: 'thinking_' + Date.now(),
+        content: t('messages.think'),
+        timestamp: new Date(),
+        role: 'char',
+        characterId: null,
+        characterName: 'Assistant',
+        sessionId: sessionId,
+        isSent: false,
+        isRead: true,
+        isThinking: true // 标记为思考状态消息
+      }
+      
+      // 临时添加思考消息到缓存和界面
+      const messagesWithThinking = [...cachedMessages, thinkingMessage]
+      chatSessions.value.set(sessionId, messagesWithThinking)
+      updateChatList(sessionId, messagesWithThinking, thinkingMessage.content)
+      
+      // 获取AI响应
+      await generateAIResponse(message, sessionId)
+    }
+  } catch (error) {
+    console.error('发送消息失败:', error)
+    alert(t('chat.sendMessageError'))
+  }
+}
+
+// 更新聊天列表的辅助方法
+const updateChatList = (sessionId, messages, lastMessage) => {
   if (currentChat.value.chatType === 'private') {
-    // 私聊
-    // 查找私聊对象
     const privateChat = privateChats.value.find(chat => chat.id === currentChat.value.userId)
     if (privateChat) {
-      privateChat.messages.push(messageData)
-      privateChat.lastMessage = message
+      privateChat.messages = messages
+      privateChat.lastMessage = lastMessage
       privateChat.lastMessageTime = new Date()
     }
   } else if (currentChat.value.chatType === 'group') {
-    // 群聊
     const groupChat = groupChats.value.find(chat => chat.id === currentChat.value.userId)
     if (groupChat) {
-      groupChat.messages.push(messageData)
-      groupChat.lastMessage = message
+      groupChat.messages = messages
+      groupChat.lastMessage = lastMessage
       groupChat.lastMessageTime = new Date()
+    }
+  }
+}
+
+// 获取会话参与者
+const getSessionParticipants = async () => {
+  if (!currentChat.value.userId) return []
+  
+  const chatType = currentChat.value.chatType
+  const userId = currentChat.value.userId
+  
+  if (chatType === 'private') {
+    // 私聊：返回对应的角色
+    const character = dbCharacters.value.find(char => char.id === userId)
+    return character ? [character] : []
+  } else if (chatType === 'group') {
+    // 群聊：返回群组中的所有角色
+    const group = dbGroups.value.find(group => group.id === userId)
+    if (group && group.characterIds) {
+      return group.characterIds
+        .map(charId => dbCharacters.value.find(char => char.id === charId))
+        .filter(Boolean)
+    }
+  }
+  
+  return []
+}
+
+// 构建AI提示
+const constructPrompt = async (targetCharacterName = null, sessionId) => {
+  const participants = await getSessionParticipants()
+  
+  // 获取聊天历史（最近15条消息）
+  const history = await getChatHistory(sessionId)
+  const recentHistory = history.slice(-15)
+  
+  // 获取对话文本用于触发世界设定
+  const convoText = recentHistory.map(h => h.content).join('\n')
+  
+  // 获取触发的世界设定
+  const triggeredWorlds = dbWorldbooks.value.filter(w => {
+    const keywords = w.keywords.split(/[,，]/).map(k => k.trim().toLowerCase())
+    return keywords.some(keyword => convoText.toLowerCase().includes(keyword))
+  })
+  
+  // 构建场景角色部分
+  let prompt = '[System Note: This is a roleplay conversation.]\n\n== CHARACTERS IN THIS SCENE ==\n'
+  participants.forEach(p => {
+    prompt += `Name: ${p.name}\nPersona: ${p.persona}\n\n`
+  })
+  
+  // 添加世界设定
+  if (triggeredWorlds.length > 0) {
+    prompt += '== RELEVANT WORLDBOOK ENTRIES ==\n'
+    triggeredWorlds.forEach(w => {
+      prompt += `Content for "${w.keywords}": ${w.content}\n\n`
+    })
+  }
+  
+  // 添加对话历史
+  prompt += '== RECENT CONVERSATION HISTORY ==\n'
+  
+  // 检查是否有主角角色
+  const playerCharacter = dbCharacters.value.find(char => char.isPlayer)
+  const hasPlayerCharacter = !!playerCharacter
+  
+  // 根据是否有主角角色，调整历史消息的显示方式
+  recentHistory.forEach(msg => {
+    let speakerName
+    if (msg.role === 'user') {
+      speakerName = hasPlayerCharacter ? (msg.characterName || 'User') : 'User'
+    } else {
+      speakerName = msg.characterName || '旁白'
+    }
+    prompt += `${speakerName}: ${msg.content}\n`
+  })
+  
+  // 构建角色扮演指令
+  let roleplayInstruction = ''
+  const isGroup = currentChat.value.chatType === 'group' && participants.length > 1
+  
+  // 添加基础AI控制规则
+  let aiControlRules = 'IMPORTANT: AI can only control the behaviors and dialogues of non-player characters, and must never speak or act on behalf of the player character.'
+  if (hasPlayerCharacter) {
+    aiControlRules += ` The player character is ${playerCharacter.name}, and the AI must never control this character.`
+  }
+  
+  if (isGroup) {
+    if (targetCharacterName) {
+      // 如果有主角，调整提示以反映用户是以主角身份说话
+      if (hasPlayerCharacter) {
+        roleplayInstruction = `${aiControlRules} ${playerCharacter.name} speaks directly to ${targetCharacterName}. ${targetCharacterName} MUST respond. Format: '${targetCharacterName}: Their dialogue'.`
+      } else {
+        roleplayInstruction = `${aiControlRules} The User speaks directly to ${targetCharacterName}. ${targetCharacterName} MUST respond. Format: '${targetCharacterName}: Their dialogue'.`
+      }
+    } else {
+      roleplayInstruction = `${aiControlRules} You are the roleplay master, responsible for driving the story forward. Based on the characters and world setting, you MUST decide who speaks next OR provide narration. Narration is crucial for describing the environment, introducing new events, or revealing challenges. For example, 'A cold wind blows through the trees, carrying the scent of decay.' Use narration to make the story dynamic and interesting. For character dialogue, use the format 'CharacterName: Their dialogue'. For narration, omit the prefix.`
+    }
+  } else {
+    // 单角色对话
+    if (hasPlayerCharacter && participants[0]?.name === playerCharacter.name) {
+      roleplayInstruction = `${aiControlRules} Wait for the input from the player character ${playerCharacter.name}. The AI cannot speak on behalf of the player.`
+    } else {
+      roleplayInstruction = `${aiControlRules} Continue as ${participants[0]?.name}. Do not include your name as a prefix.`
+    }
+  }
+  
+  // 添加语言指令
+  const langInstruction = locale.value === 'zhHans' ? '你必须只使用简体中文进行回复。' : 'You MUST respond only in English.'
+  
+  // 如果有主角，添加额外说明
+  if (hasPlayerCharacter) {
+    prompt += `\n[System Note: 严格规则：玩家角色是 ${playerCharacter.name}，AI绝不能代替此角色说话或行动。剧情只能根据 ${playerCharacter.name} 的对话来推进。如果没有说明角色应该互相不认识，应该随着角色之间的对话来缓慢推进剧情。 ${roleplayInstruction} Final instruction: ${langInstruction}]`
+  } else {
+    prompt += `\n[System Note: ${roleplayInstruction} Final instruction: ${langInstruction}]`
+  }
+  
+  console.log('--- PROMPT SENT TO AI ---\n', prompt)
+  return prompt
+}
+
+// 生成AI响应
+const generateAIResponse = async (userMessage, sessionId) => {
+  try {
+    // 检查配置是否已加载
+    if (!worldConfig.value || !worldConfig.value.apiUrl) {
+      console.error('AI配置未加载，无法生成响应');
+      throw new Error('AI配置未加载');
+    }
+    
+    // 获取会话参与者
+    const participants = await getSessionParticipants()
+    if (participants.length === 0) return
+    
+    // 检查是否有@提及
+    let mentionedChar = null
+    const match = userMessage.match(/@([\p{L}\p{N}_]+)/u)
+    if (match) {
+      const mentionedName = match[1]
+      mentionedChar = participants.find(p => 
+        p.name === mentionedName || p.name.toLowerCase() === mentionedName.toLowerCase()
+      )
+    }
+    
+    // 构建提示并获取AI响应
+    const prompt = await constructPrompt(mentionedChar ? mentionedChar.name : null, sessionId)
+    console.log('@worldConfig.value: ', worldConfig.value);
+    const responseText = await getAIResponse(prompt, worldConfig.value)
+    
+    // 清理AI响应
+    let cleanedResponse = cleanAIResponse(responseText)
+    
+    // 解析响应中的角色名和内容
+    let respCharName = null
+    let content = cleanedResponse
+    const parts = cleanedResponse.split(':')
+    
+    // 如果有@提及，优先让被@的角色回应
+    if (mentionedChar && parts.length > 1) {
+      const firstPart = parts[0].trim()
+      if (firstPart === mentionedChar.name || firstPart.toLowerCase() === mentionedChar.name.toLowerCase()) {
+        respCharName = mentionedChar.name
+        content = parts.slice(1).join(':').trim()
+      } else {
+        respCharName = mentionedChar.name
+        content = cleanedResponse
+      }
+    } else {
+      // 没有@提及时，尝试解析角色名
+      const speakingChar = participants.find(p => p.name === parts[0].trim())
+      if (speakingChar && parts.length > 1) {
+        respCharName = speakingChar.name
+        content = parts.slice(1).join(':').trim()
+      }
+    }
+    
+    // 创建AI响应消息数据
+    const finalCharId = respCharName ? participants.find(p => p.name === respCharName)?.id : null
+    const displayName = respCharName || (mentionedChar ? mentionedChar.name : null)
+    
+    const aiMessageData = {
+      content: content,
+      timestamp: new Date(),
+      role: 'char',
+      characterId: finalCharId,
+      characterName: displayName,
+      sessionId: sessionId,
+      isSent: false,
+      isRead: true
+    }
+    
+    // 保存AI响应到数据库
+    const savedAIMessage = await saveMessage(aiMessageData)
+    
+    if (savedAIMessage) {
+      // 获取当前缓存消息并移除"思考中..."消息
+      const cachedMessages = chatSessions.value.get(sessionId) || []
+      const filteredMessages = cachedMessages.filter(msg => !msg.isThinking)
+      filteredMessages.push(savedAIMessage)
+      chatSessions.value.set(sessionId, filteredMessages)
+      
+      // 更新聊天列表
+      updateChatList(sessionId, filteredMessages, content)
+    }
+    
+  } catch (error) {
+    console.error('AI响应生成失败:', error)
+    
+    // 添加错误消息
+    const errorMessageData = {
+      content: `抱歉，我出错了: ${error.message}`,
+      timestamp: new Date(),
+      role: 'char',
+      characterName: '系统',
+      sessionId: sessionId,
+      isSent: false,
+      isRead: true
+    }
+    
+    const savedErrorMessage = await saveMessage(errorMessageData)
+    if (savedErrorMessage) {
+      // 获取当前缓存消息并移除"思考中..."消息
+      const cachedMessages = chatSessions.value.get(sessionId) || []
+      const filteredMessages = cachedMessages.filter(msg => !msg.isThinking)
+      filteredMessages.push(savedErrorMessage)
+      chatSessions.value.set(sessionId, filteredMessages)
+      updateChatList(sessionId, filteredMessages, errorMessageData.content)
     }
   }
 }
@@ -252,6 +514,16 @@ const showCreateDialog = (type) => {
     // 其他类型的创建对话框逻辑
     console.log('创建:', type)
   }
+}
+
+/**
+ * 选择世界设定条目
+ * @param {number} entryId - 条目ID
+ */
+const selectWorldbookEntry = (entryId) => {
+  // 实现世界设定选择逻辑
+  console.log('选择世界设定:', entryId)
+  // TODO: 可以在这里添加显示世界设定详情或编辑的逻辑
 }
 
 /**
@@ -307,7 +579,7 @@ const closeGroupEditor = () => {
 /**
  * 保存群组
  */
-const saveGroup = () => {
+const saveGroup = async () => {
   if (!editingGroup.value.name.trim()) {
     return
   }
@@ -315,33 +587,26 @@ const saveGroup = () => {
   const groupData = {
     name: editingGroup.value.name.trim(),
     description: editingGroup.value.description.trim(),
-    avatar: editingGroup.value.avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${editingGroup.value.name}`,
-    members: editingGroup.value.members,
-    memberCount: editingGroup.value.members.length,
+    avatar: editingGroup.value.avatar,
+    characterIds: editingGroup.value.members || [],
     isPrivate: editingGroup.value.isPrivate,
     allowInvites: editingGroup.value.allowInvites,
-    lastMessage: '',
-    lastMessageTime: new Date(),
-    unreadCount: 0,
-    messages: []
+    id: editingGroup.value.id
   }
 
-  if (editingGroup.value.id) {
-    // 更新现有群组
-    const index = groupChats.value.findIndex(g => g.id === editingGroup.value.id)
-    if (index !== -1) {
-      groupChats.value[index] = { ...groupChats.value[index], ...groupData }
+  try {
+    // 使用数据库保存群组
+    const savedId = await dbSaveGroup(groupData)
+    
+    if (savedId) {
+      // 更新群聊列表
+      await loadGroupChats()
+      closeGroupEditor()
     }
-  } else {
-    // 创建新群组
-    const newGroup = {
-      id: Date.now(),
-      ...groupData
-    }
-    groupChats.value.push(newGroup)
+  } catch (error) {
+    console.error('保存群组失败:', error)
+    alert('保存群组失败')
   }
-
-  closeGroupEditor()
 }
 
 /**
@@ -391,7 +656,7 @@ const closeCharacterEditor = () => {
 /**
  * 保存角色
  */
-const saveCharacter = (characterData) => {
+const saveCharacter = async (characterData) => {
   if (!characterData.name.trim()) {
     return
   }
@@ -403,50 +668,53 @@ const saveCharacter = (characterData) => {
     background: characterData.background || '',
     isPublic: characterData.isPublic || false,
     allowEdit: characterData.allowEdit || false,
-    avatar: characterData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${characterData.name}`
+    avatar: characterData.avatar,
+    id: characterData.id
   }
 
-  if (characterData.id) {
-    // 更新现有角色
-    const index = characters.value.findIndex(c => c.id === characterData.id)
-    if (index !== -1) {
-      characters.value[index] = { ...characters.value[index], ...processedData }
+  try {
+    // 使用数据库保存角色
+    const savedId = await dbSaveCharacter(processedData)
+    
+    if (savedId) {
+      // 显示成功消息
+      alert(t('chat.characters.saveSuccess'))
+      closeCharacterEditor()
+      
+      // 更新私聊列表（如果需要）
+      await loadPrivateChats()
     }
-  } else {
-    // 创建新角色
-    const newCharacter = {
-      id: Date.now(),
-      ...processedData
-    }
-    characters.value.push(newCharacter)
+  } catch (error) {
+    console.error('保存角色失败:', error)
+    alert(t('chat.characters.saveError') || '保存角色失败')
   }
-
-  // 这里可以添加API调用来保存到服务器
-  console.log('Character saved:', processedData)
-
-  // 显示成功消息
-  alert(t('chat.characters.saveSuccess'))
-
-  closeCharacterEditor()
 }
 
 /**
  * 删除角色
  * @param {number} characterId - 角色ID
  */
-const deleteCharacter = (characterId) => {
+const deleteCharacter = async (characterId) => {
   if (confirm(t('chat.characters.deleteConfirm'))) {
-    const index = characters.value.findIndex(c => c.id === characterId)
-    if (index !== -1) {
-      characters.value.splice(index, 1)
-      // 这里可以添加API调用来删除服务器上的角色
-      console.log('Character deleted:', characterId)
-      // 如果正在编辑这个角色，关闭编辑器
-      if (editingCharacter.value && editingCharacter.value.id === characterId) {
-        closeCharacterEditor()
+    try {
+      // 使用数据库删除角色
+      const success = await dbDeleteCharacter(characterId)
+      
+      if (success) {
+        // 如果正在编辑这个角色，关闭编辑器
+        if (editingCharacter.value && editingCharacter.value.id === characterId) {
+          closeCharacterEditor()
+        }
+        
+        // 更新私聊列表
+        await loadPrivateChats()
+        
+        // 显示成功消息
+        alert(t('chat.characters.deleteSuccess'))
       }
-      // 显示成功消息
-      alert(t('chat.characters.deleteSuccess'))
+    } catch (error) {
+      console.error('删除角色失败:', error)
+      alert(t('chat.characters.deleteError') || '删除角色失败')
     }
   }
 }
@@ -490,15 +758,123 @@ const handleResize = () => {
   checkMobile()
 }
 
+/**
+ * 加载私聊列表
+ */
+const loadPrivateChats = async () => {
+  try {
+    // 基于角色创建私聊列表
+    privateChats.value = dbCharacters.value
+      .filter(char => !char.isPlayer)
+      .map(char => ({
+        id: char.id,
+        name: char.name,
+        avatar: char.avatar,
+        lastMessage: '',
+        lastMessageTime: new Date(),
+        unreadCount: 0,
+        messages: []
+      }))
+  } catch (error) {
+    console.error('加载私聊列表失败:', error)
+  }
+}
+
+/**
+ * 加载群聊列表
+ */
+const loadGroupChats = async () => {
+  try {
+    // 基于群组创建群聊列表
+    groupChats.value = dbGroups.value.map(group => ({
+      id: group.id,
+      name: group.name,
+      avatar: group.avatar,
+      lastMessage: '',
+      lastMessageTime: new Date(),
+      unreadCount: 0,
+      memberCount: group.characterIds ? group.characterIds.length : 0,
+      messages: []
+    }))
+  } catch (error) {
+    console.error('加载群聊列表失败:', error)
+  }
+}
+
+/**
+ * 初始化数据库连接
+ */
+const initializeDatabase = async () => {
+  try {
+    // 从本地存储获取当前世界ID
+    const worldId = localStorage.getItem('current-world-id')
+    
+    if (!worldId) {
+      // 如果没有世界ID，跳转回首页
+      await router.push('/')
+      return
+    }
+    
+    // 连接到数据库
+    const success = await connectToWorld(worldId)
+    
+    console.log('数据库连接结果:', success)
+    console.log('连接后 worldConfig:', worldConfig.value)
+    
+    if (success) {
+      // 更新世界信息
+      worldInfo.value.title = currentWorld.value || '未知世界'
+      
+      // 加载聊天列表
+      await loadPrivateChats()
+      await loadGroupChats()
+      
+      // 默认选择第一个私聊
+      if (privateChats.value.length > 0) {
+        await selectChat(privateChats.value[0].id, 'private')
+      }
+      
+      console.log('初始化完成后 worldConfig:', worldConfig.value)
+    } else {
+      console.error('连接数据库失败')
+      await router.push('/')
+    }
+  } catch (error) {
+    console.error('初始化数据库失败:', error)
+    await router.push('/')
+  }
+}
+
 // 组件挂载时的初始化
-onMounted(() => {
+onMounted(async () => {
   checkMobile()
   window.addEventListener('resize', handleResize)
-  // 默认选择第一个私聊
-  if (privateChats.value.length > 0) {
-    selectChat(privateChats.value[0].id, 'private')
+  
+  console.log('组件挂载前 worldConfig:', worldConfig.value)
+  
+  // 初始化数据库连接
+  await initializeDatabase()
+  
+  console.log('数据库初始化后 worldConfig:', worldConfig.value)
+})
+
+// 监听数据库错误
+watch(dbError, (newError) => {
+  if (newError) {
+    console.error('数据库错误:', newError)
+    // 可以显示错误提示
   }
 })
+
+// 监听角色变化，更新私聊列表
+watch(dbCharacters, async () => {
+  await loadPrivateChats()
+}, { deep: true })
+
+// 监听群组变化，更新群聊列表
+watch(dbGroups, async () => {
+  await loadGroupChats()
+}, { deep: true })
 
 // 组件卸载时清理
 onUnmounted(() => {

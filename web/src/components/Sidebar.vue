@@ -4,7 +4,7 @@
     <div class="user-header">
       <div class="user-info">
         <div class="user-avatar">
-          <img :src="worldInfo.avatar" :alt="t('chat.user.avatar')" />
+          <img :src="worldInfo.avatar || `https://api.dicebear.com/9.x/icons/svg?seed=${worldInfo.title}`" :alt="t('chat.user.avatar')" />
           <div class="status-indicator online"></div>
         </div>
         <div class="user-details">
@@ -50,7 +50,7 @@
             :class="['chat-item', { active: currentChat.userId === chat.id && currentChat.chatType === 'private' }]"
             @click="selectChat(chat.id, 'private')">
             <div class="chat-avatar">
-              <img :src="chat.avatar" :alt="chat.name" />
+              <img :src="chat.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${chat.name}`" :alt="chat.name" />
               <div v-if="chat.unreadCount > 0" class="unread-badge">{{ chat.unreadCount }}</div>
             </div>
             <div class="chat-info">
@@ -77,7 +77,7 @@
             :class="['chat-item', { active: currentChat.userId === chat.id && currentChat.chatType === 'group' }]"
             @click="selectChat(chat.id, 'group')">
             <div class="chat-avatar group-avatar">
-              <img :src="chat.avatar" :alt="chat.name" />
+              <img :src="chat.avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${chat.name}`" :alt="chat.name" />
               <div v-if="chat.unreadCount > 0" class="unread-badge">{{ chat.unreadCount }}</div>
             </div>
             <div class="chat-info">
@@ -104,7 +104,7 @@
           <div v-for="character in filteredCharacters" :key="character.id" class="character-card"
             @click="selectCharacter(character.id)">
             <div class="character-avatar">
-              <img :src="character.avatar" :alt="character.name" />
+              <img :src="character.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${character.name}`" :alt="character.name" />
             </div>
             <h5 class="character-name">{{ character.name }}</h5>
             <p class="character-desc">{{ character.description }}</p>
@@ -120,7 +120,7 @@
         </div>
       </div>
 
-      <!-- 世界设定集 -->
+      <!-- 世界之书 -->
       <div v-if="activeTab === 'worldbook'" class="content-section">
         <div class="section-header">
           <h4>{{ t('chat.worldbook.title') }}</h4>
@@ -132,9 +132,9 @@
           <div v-for="entry in filteredWorldbook" :key="entry.id" class="worldbook-item"
             @click="selectWorldbookEntry(entry.id)">
             <div class="worldbook-icon">📖</div>
-            <div class="worldbook-info">
-              <h5 class="worldbook-title">{{ entry.title }}</h5>
-              <p class="worldbook-desc">{{ entry.description }}</p>
+            <div class="worldbook-info overflow-hidden">
+              <h5 class="worldbook-title text-truncate">{{ entry.title }}</h5>
+              <p class="worldbook-desc line-3-ellipsis">{{ entry.description }}</p>
             </div>
           </div>
         </div>
@@ -280,11 +280,21 @@ const filteredCharacters = computed(() => {
 
 /**
  * 根据搜索查询过滤世界设定列表
+ * 将数据库格式{keywords, content, id}映射为模板期望的{title, description, id}
  */
 const filteredWorldbook = computed(() => {
-  if (!searchQuery.value) return props.worldbook
-  return props.worldbook.filter(entry =>
-    entry.title.toLowerCase().includes(searchQuery.value.toLowerCase())
+  // 首先映射数据结构
+  const mappedWorldbook = props.worldbook.map(entry => ({
+    id: entry.id,
+    title: entry.keywords || '未命名条目',
+    description: entry.content || '暂无描述'
+  }))
+  
+  // 然后进行搜索过滤
+  if (!searchQuery.value) return mappedWorldbook
+  return mappedWorldbook.filter(entry =>
+    entry.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+    entry.description.toLowerCase().includes(searchQuery.value.toLowerCase())
   )
 })
 
