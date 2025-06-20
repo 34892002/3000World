@@ -4,7 +4,15 @@
 ![Vue](https://img.shields.io/badge/Vue-3.5+-green.svg)
 ![Vuetify](https://img.shields.io/badge/Vuetify-3.8+-blue.svg)
 
+[![English](https://img.shields.io/badge/English-Click-yellow)](README_EN.md)
+[![中文文档](https://img.shields.io/badge/中文文档-点击查看-orange)](README.md)
+
 Welcome to **3000World**, an innovative application based on role-playing and real-time group chat, designed to bring you an immersive interactive experience. Whether you're passionate about creating virtual characters, building worldviews, or eager to immerse yourself in creative conversations, 3000World is your best choice!
+
+## 🖥️UI display
+![display](doc/img/s_1_cn.png)
+![display](doc/img/s_2_cn.png)
+![display](doc/img/s_3_cn.png)
 
 ## 🎯 Project Features
 
@@ -47,11 +55,6 @@ Welcome to **3000World**, an innovative application based on role-playing and re
 - **Vue Router** - Routing management
 - **Vue I18n** - Internationalization support
 
-### Development Tools
-- **ESLint** - Code quality checking
-- **Sass** - CSS preprocessor
-- **TypeScript Support** - Type safety
-
 ### Data Storage
 - **IndexedDB** - Local data storage ensuring data privacy and security
 
@@ -85,7 +88,7 @@ Welcome to **3000World**, an innovative application based on role-playing and re
 
 1. **Clone the project**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/34892002/3000World.git
    cd 3000world
    ```
 

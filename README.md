@@ -4,7 +4,15 @@
 ![Vue](https://img.shields.io/badge/Vue-3.5+-green.svg)
 ![Vuetify](https://img.shields.io/badge/Vuetify-3.8+-blue.svg)
 
+[![English](https://img.shields.io/badge/English-Click-yellow)](README_EN.md)
+[![中文文档](https://img.shields.io/badge/中文文档-点击查看-orange)](README.md)
+
 欢迎来到 **3000World**，一个基于角色扮演与实时群聊的创新应用，旨在为你带来沉浸式的互动体验。无论你是热衷于创建虚拟角色、构建世界观，还是渴望沉浸于富有创意的对话中，3000World 都将是你最佳的选择！
+
+## 🖥️界面展示
+![界面展示](doc/img/s_1_cn.png)
+![界面展示](doc/img/s_2_cn.png)
+![界面展示](doc/img/s_3_cn.png)
 
 ## 🎯 项目特色
 
@@ -45,7 +53,7 @@
 
 ### 示例世界
 
-项目包含一个示例世界文件 `example_world.json`，展示了经典的"刘华强买瓜"场景，你可以：
+项目包含一个示例世界文件 `example_world.json`，展示了经典的"华强买瓜"场景，你可以：
 
 - 导入示例世界快速体验功能
 - 参考示例数据结构创建自己的世界
@@ -70,11 +78,6 @@
 - **Pinia** - 状态管理
 - **Vue Router** - 路由管理
 - **Vue I18n** - 国际化支持
-
-### 开发工具
-- **ESLint** - 代码质量检查
-- **Sass** - CSS预处理器
-- **TypeScript支持** - 类型安全
 
 ### 数据存储
 - **IndexedDB** - 本地数据存储，确保数据私密性与安全性
@@ -109,7 +112,7 @@
 
 1. **克隆项目**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/34892002/3000World.git
    cd 3000world
    ```
 
