@@ -9,7 +9,21 @@
 
 Welcome to **3000World**, an innovative application based on role-playing and real-time group chat, designed to bring you an immersive interactive experience. Whether you're passionate about creating virtual characters, building worldviews, or eager to immerse yourself in creative conversations, 3000World is your best choice!
 
-## 🖥️UI display
+### Example World
+
+The project includes an example world file `example_world.json`, showcasing the classic "Huaqiang Buying Melons" scenario. You can:
+
+- Import the example world to quickly experience the features
+- Reference the example data structure to create your own world
+- Learn about character settings and worldview configuration methods
+
+### Local Demo (only PC)
+
+If you want to quickly experience the features, you can directly open the `local.html` file, which is a local demo page with complete functionality.
+
+![local ui](doc/img/s_4_cn.png)
+
+## 🖥️UI display (mobile & PC)
 ![display](doc/img/s_1_cn.png)
 ![display](doc/img/s_2_cn.png)
 ![display](doc/img/s_3_cn.png)
@@ -129,18 +143,6 @@ npm run build
 1. **Select or Create World**: After launching the app, you can choose from existing worlds or create new ones.
 2. **Build Characters and Groups**: Create character cards and chat groups, customize character personalities and interactions.
 3. **Unfold Your Story**: Engage in real-time conversations in the central chat area, where AI will automatically generate dialogues based on character settings and worldview.
-
-### Example World
-
-The project includes an example world file `example_world.json`, showcasing the classic "Liu Huaqiang Buying Melons" scenario. You can:
-
-- Import the example world to quickly experience the features
-- Reference the example data structure to create your own world
-- Learn about character settings and worldview configuration methods
-
-### Local Demo
-
-If you want to quickly experience the features, you can directly open the `local.html` file, which is a local demo page with complete functionality.
 
 ## 🔥 Use Cases
 
