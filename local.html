@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3000World-demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://lf9-cdn-tos.bytecdntp.com/cdn/expire-1-M/jquery/3.6.0/jquery.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+        }
+
+        .chat-bubble {
+            max-width: 80%;
+            width: fit-content;
+        }
+
+        .chat-bubble-user {
+            background-color: #3b82f6;
+            color: white;
+            align-self: flex-end;
+        }
+
+        .chat-bubble-char {
+            background-color: #4b5563;
+            color: white;
+            align-self: flex-start;
+        }
+
+        .speaker-name {
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: #d1d5db;
+            margin-bottom: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 3px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+
+        .sidebar-item:hover,
+        .sidebar-item.active {
+            background-color: #374151;
+        }
+
+        #group-char-selection label {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .shake {
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+
+            10%,
+            90% {
+                transform: translate3d(-1px, 0, 0);
+            }
+
+            20%,
+            80% {
+                transform: translate3d(2px, 0, 0);
+            }
+
+            30%,
+            50%,
+            70% {
+                transform: translate3d(-4px, 0, 0);
+            }
+
+            40%,
+            60% {
+                transform: translate3d(4px, 0, 0);
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-white overflow-hidden">
+
+    <!-- Toast Notification -->
+    <div id="toast-notification" class="hidden fixed top-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg z-50">
+    </div>
+
+    <!-- World Selection Dialog -->
+    <div id="world-selector-dialog"
+        class="fixed inset-0 bg-gray-900 bg-opacity-80 flex items-center justify-center z-40">
+        <div class="bg-gray-800 rounded-lg shadow-xl p-8 w-full max-w-md relative">
+            <div class="absolute top-4 right-4">
+                <button id="lang-switcher" class="text-sm text-gray-400 hover:text-white"
+                    data-i18n="langSwitcherLabel">语言: 简体中文</button>
+            </div>
+            <h2 class="text-3xl font-bold text-center mb-6" data-i18n="appTitle">3000World</h2>
+            <div id="existing-worlds-container">
+                <h3 class="text-lg font-semibold mb-3" data-i18n="selectWorldTitle">选择一个世界</h3>
+                <div class="flex space-x-3 mb-6">
+                    <select id="world-select-dropdown"
+                        class="flex-grow bg-gray-700 p-3 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+                    <button id="enter-world-btn"
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded-lg"
+                        data-i18n="enterWorldBtn">进入</button>
+                </div>
+            </div>
+            <div>
+                <h3 class="text-lg font-semibold mb-3" data-i18n="createWorldTitle">或者, 创建一个新世界</h3>
+                <div class="flex space-x-3 mb-4">
+                    <input type="text" id="new-world-name" data-i18n-placeholder="newWorldPlaceholder"
+                        placeholder="输入新世界的名称..."
+                        class="flex-grow bg-gray-700 p-3 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    <button id="create-world-btn"
+                        class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-5 rounded-lg"
+                        data-i18n="createWorldBtn">创建</button>
+                </div>
+                <div class="border-t border-gray-600 pt-4">
+                    <h3 class="text-lg font-semibold mb-3" data-i18n="importWorldTitle">导入世界</h3>
+                    <div class="flex flex-col space-y-3">
+                        <input type="file" id="import-world-file" accept=".json" 
+                            class="hidden">
+                        <button id="import-world-btn"
+                            class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-5 rounded-lg"
+                            data-i18n="importWorldBtn">选择JSON文件导入</button>
+                        <div id="import-status" class="text-sm text-gray-400 hidden"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application UI (Initially Hidden) -->
+    <div id="main-app" class="hidden flex h-screen">
+        <!-- Left Sidebar -->
+        <aside class="w-1/4 bg-gray-800 p-4 flex flex-col custom-scrollbar overflow-y-auto">
+            <div class="flex-grow">
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold mb-3" data-i18n="groupChatTitle">群聊</h2>
+                    <button id="new-group-btn"
+                        class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg mb-3"
+                        data-i18n="newGroupBtn">创建新群组</button>
+                    <ul id="group-list" class="space-y-2"></ul>
+                </div>
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold mb-3" data-i18n="characterCardTitle">角色卡片</h2>
+                    <button id="new-char-btn"
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg mb-3"
+                        data-i18n="newCharBtn">创建新角色</button>
+                    <ul id="char-list" class="space-y-2"></ul>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold mb-3" data-i18n="worldBookTitle">世界之书</h2>
+                    <button id="new-world-btn"
+                        class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg mb-3"
+                        data-i18n="newWorldEntryBtn">创建新条目</button>
+                    <ul id="world-list" class="space-y-2"></ul>
+                </div>
+            </div>
+            <div class="flex-shrink-0">
+                <h2 class="text-xl font-bold mb-3" data-i18n="worldSettingsTitle">世界配置</h2>
+                <button id="edit-config-btn"
+                    class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg"
+                    data-i18n="editConfigBtn">编辑配置</button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="w-1/2 bg-gray-900 flex flex-col p-4 h-screen">
+            <div id="chat-welcome" class="flex flex-col items-center justify-center h-full text-center">
+                <h1 class="text-3xl font-bold text-gray-400" data-i18n="welcomeTitle">欢迎使用</h1>
+                <p class="text-gray-500 mt-2" data-i18n="welcomeMessage">从左侧选择一个群组或角色开始对话。</p>
+            </div>
+            <div id="chat-area" class="hidden flex-1 flex flex-col min-h-0">
+                <div id="chat-header" class="border-b-2 border-gray-700 pb-2 mb-4 flex-shrink-0">
+                    <h2 id="chat-session-name" class="text-2xl font-bold"></h2>
+                    <p id="chat-participants" class="text-sm text-gray-400"></p>
+                </div>
+                <div id="chat-history-container"
+                    class="flex-1 custom-scrollbar overflow-y-auto pr-4 h-[calc(100vh-12rem)]">
+                    <div id="chat-history" class="space-y-4 flex flex-col"></div>
+                </div>
+                <div class="mt-4 relative flex-shrink-0">
+                    <div id="mention-suggestions"
+                        class="hidden absolute bottom-full mb-2 w-full bg-gray-700 border border-gray-600 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto custom-scrollbar">
+                    </div>
+                    <div class="flex items-center">
+                        <textarea id="user-input"
+                            class="w-full p-3 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                            data-i18n-placeholder="userInputPlaceholder" placeholder="输入你的消息, 可使用 @ 来提及角色..."
+                            rows="2"></textarea>
+                        <button id="send-btn"
+                            class="ml-3 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded-lg"
+                            data-i18n="sendBtn">发送</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Sidebar -->
+        <aside class="w-1/4 bg-gray-800 p-6 custom-scrollbar overflow-y-auto">
+            <div id="editor-panel">
+                <div id="editor-welcome" class="text-gray-500">
+                    <h3 class="text-xl font-bold mb-2" data-i18n="editorTitle">编辑器</h3>
+                    <p data-i18n="editorWelcomeMessage">点击 "创建" 或选择现有条目进行编辑。</p>
+                </div>
+                <form id="config-editor" class="hidden space-y-4"></form>
+                <form id="group-editor" class="hidden space-y-4"></form>
+                <form id="char-editor" class="hidden space-y-4"></form>
+                <form id="world-editor" class="hidden space-y-4"></form>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        $(async function () { // Document Ready
+
+            // --- I18N SETUP ---
+            const i18n = {
+                'zh-CN': {
+                    langSwitcherLabel: '语言: 简体中文', appTitle: '3000World',
+                    selectWorldTitle: '选择一个世界', enterWorldBtn: '进入',
+                    createWorldTitle: '或者, 创建一个新世界', newWorldPlaceholder: '输入新世界的名称...', createWorldBtn: '创建',
+                    importWorldTitle: '导入世界', importWorldBtn: '选择JSON文件导入',
+                    groupChatTitle: '群聊', newGroupBtn: '创建新群组',
+                    characterCardTitle: '角色卡片', newCharBtn: '创建新角色',
+                    worldBookTitle: '世界之书', newWorldEntryBtn: '创建新条目',
+                    worldSettingsTitle: '世界配置', editConfigBtn: '编辑配置',
+                    welcomeTitle: '欢迎使用', welcomeMessage: '从左侧选择一个群组或角色开始对话。',
+                    userInputPlaceholder: '输入你的消息, 可使用 @ 来提及角色...', sendBtn: '发送',
+                    editorTitle: '编辑器', editorWelcomeMessage: '点击 "创建" 或选择现有条目进行编辑。',
+                    configEditorTitle: '世界配置', apiKeyLabel: 'API Key', apiUrlLabel: 'API URL', modelLabel: '模型 (Model)', saveConfigBtn: '保存配置',
+                    alertWorldNameEmpty: '世界名称不能为空！', alertSelectWorld: '请从下拉列表中选择一个世界。',
+                    alertEnterWorldFailed: '进入世界失败', alertConfigSaved: '配置已保存！', alertLangChanged: '语言已切换！',
+                    charNameCannotBeEmpty: '角色名称不能为空。', groupNeedOneChar: '群聊至少需要1个角色。',
+                    deleteConfirm: '确认删除？', deleteChar: '删除角色', deleteGroup: '删除群组', deleteEntry: '删除条目',
+                    playerCharLabel: '设为主角（用户将以此角色身份对话）', playerCharCrown: '👑 主角'
+                },
+                'en-US': {
+                    langSwitcherLabel: 'Language: English', appTitle: '3000World',
+                    selectWorldTitle: 'Select a World', enterWorldBtn: 'Enter',
+                    createWorldTitle: 'Or, Create a New World', newWorldPlaceholder: 'Enter new world name...', createWorldBtn: 'Create',
+                    importWorldTitle: 'Import World', importWorldBtn: 'Select JSON File to Import',
+                    groupChatTitle: 'Group Chats', newGroupBtn: 'New Group',
+                    characterCardTitle: 'Characters', newCharBtn: 'New Character',
+                    worldBookTitle: 'Worldbook', newWorldEntryBtn: 'New Entry',
+                    worldSettingsTitle: 'World Settings', editConfigBtn: 'Edit Settings',
+                    welcomeTitle: 'Welcome', welcomeMessage: 'Select a group or character from the left to start chatting.',
+                    userInputPlaceholder: 'Type your message, use @ to mention characters...', sendBtn: 'Send',
+                    editorTitle: 'Editor', editorWelcomeMessage: 'Click "Create" or select an existing item to edit.',
+                    configEditorTitle: 'World Settings', apiKeyLabel: 'API Key', apiUrlLabel: 'API URL', modelLabel: 'Model', saveConfigBtn: 'Save Settings',
+                    alertWorldNameEmpty: 'World name cannot be empty!', alertSelectWorld: 'Please select a world from the dropdown.',
+                    alertEnterWorldFailed: 'Failed to enter world', alertConfigSaved: 'Settings saved!', alertLangChanged: 'Language Changed!',
+                    charNameCannotBeEmpty: 'Character name cannot be empty.', groupNeedOneChar: 'Group chat needs at least one character.',
+                    deleteConfirm: 'Confirm Deletion?', deleteChar: 'Delete Character', deleteGroup: 'Delete Group', deleteEntry: 'Delete Entry',
+                    playerCharLabel: 'Set as player character (user will chat as this character)', playerCharCrown: '👑 Player'
+                }
+            };
+
+            let currentLang = 'zh-CN';
+
+            function setLanguage(lang, showNotification = false) {
+                if (!i18n[lang]) lang = 'zh-CN'; // Fallback
+                currentLang = lang;
+                localStorage.setItem('3000world-lang', lang);
+
+                const strings = i18n[lang];
+                $('[data-i18n]').each(function () {
+                    const key = $(this).data('i18n');
+                    if (strings[key]) $(this).text(strings[key]);
+                });
+                $('[data-i18n-placeholder]').each(function () {
+                    const key = $(this).data('i18n-placeholder');
+                    if (strings[key]) $(this).attr('placeholder', strings[key]);
+                });
+
+                if (showNotification) {
+                    showToast('alertLangChanged', false);
+                }
+            }
+
+            function getLanguage() {
+                return localStorage.getItem('3000world-lang') || 'zh-CN';
+            }
+
+            // --- GLOBAL APP STATE ---
+            const DB_PREFIX = '3000World_';
+            const DB_VERSION = 3;
+            let db;
+
+            let currentState = {
+                sessionId: null, sessionType: null,
+                characterCache: new Map(),
+                worldConfig: { apiKey: '', apiUrl: '', model: '' },
+                playerCharacter: null // 存储主角角色信息
+            };
+
+            // --- UTILITY: TOAST NOTIFICATION ---
+            function showToast(messageKey, isError = true) {
+                const message = i18n[currentLang][messageKey] || messageKey;
+                const $toast = $('#toast-notification');
+                $toast.text(message)
+                    .removeClass('bg-red-500 bg-green-500')
+                    .addClass(isError ? 'bg-red-500' : 'bg-green-500')
+                    .fadeIn(300);
+                setTimeout(() => $toast.fadeOut(300), 3000);
+            }
+
+            // --- STARTUP LOGIC: WORLD SELECTION ---
+            async function showWorldSelectionDialog() {
+                if (!window.indexedDB.databases) {
+                    $('#existing-worlds-container').html(`<p class="text-yellow-400 text-sm">${i18n[currentLang].alertBrowserSupport}</p>`);
+                    return;
+                }
+
+                const databases = await window.indexedDB.databases();
+                const worldDbs = databases.filter(db => db.name.startsWith(DB_PREFIX));
+                const $dropdown = $('#world-select-dropdown').empty();
+
+                if (worldDbs.length === 0) {
+                    $('#existing-worlds-container').hide();
+                } else {
+                    $('#existing-worlds-container').show();
+                    $dropdown.append($('<option>').text(i18n[currentLang].selectWorldTitle + '...').val(''));
+                    worldDbs.forEach(dbInfo => {
+                        const worldName = dbInfo.name.replace(DB_PREFIX, '');
+                        $('<option></option>').text(worldName).val(worldName).appendTo($dropdown);
+                    });
+                }
+            }
+
+            async function enterWorld(worldName) {
+                if (!worldName) {
+                    const $input = $('#new-world-name');
+                    showToast('alertWorldNameEmpty');
+                    $input.addClass('shake border-red-500').focus();
+                    setTimeout(() => $input.removeClass('shake border-red-500'), 500);
+                    return;
+                }
+
+                const dbName = `${DB_PREFIX}${worldName}`;
+                try {
+                    db = await initDB(dbName);
+                    await loadWorldConfig();
+                    $('#world-selector-dialog').fadeOut(300);
+                    $('#main-app').removeClass('hidden');
+                    initializeAppLogic();
+                } catch (error) {
+                    showToast(`${i18n[currentLang].alertEnterWorldFailed}: ${error}`);
+                }
+            }
+
+            async function importWorld(worldData, worldName) {
+                const dbName = `${DB_PREFIX}${worldName}`;
+                try {
+                    // 创建新的数据库
+                    db = await initDB(dbName);
+                    
+                    // 导入角色数据
+                    if (worldData.characters && worldData.characters.length > 0) {
+                        const charStore = getStore('characters', 'readwrite');
+                        for (const char of worldData.characters) {
+                            const { id, ...charData } = char; // 移除原ID，让数据库自动生成新ID
+                            charStore.add(charData);
+                        }
+                    }
+                    
+                    // 导入群组数据
+                    if (worldData.groups && worldData.groups.length > 0) {
+                        const groupStore = getStore('groups', 'readwrite');
+                        for (const group of worldData.groups) {
+                            const { id, ...groupData } = group;
+                            groupStore.add(groupData);
+                        }
+                    }
+                    
+                    // 导入世界设定数据
+                    if (worldData.worldbooks && worldData.worldbooks.length > 0) {
+                        const worldStore = getStore('worldbooks', 'readwrite');
+                        for (const entry of worldData.worldbooks) {
+                            const { id, ...entryData } = entry;
+                            worldStore.add(entryData);
+                        }
+                    }
+                    
+                    // 导入配置数据
+                    if (worldData.config) {
+                        const configStore = getStore('config', 'readwrite');
+                        configStore.put(worldData.config.apiKey || '', 'apiKey');
+                        configStore.put(worldData.config.apiUrl || 'https://api.deepinfra.com/v1/openai/chat/completions', 'apiUrl');
+                        configStore.put(worldData.config.model || 'deepseek-ai/DeepSeek-R1-Turbo', 'model');
+                    }
+                    
+                    // 等待所有操作完成
+                    await new Promise(resolve => {
+                        const transaction = db.transaction(['characters', 'groups', 'worldbooks', 'config'], 'readwrite');
+                        transaction.oncomplete = resolve;
+                    });
+                    
+                    await loadWorldConfig();
+                    $('#world-selector-dialog').fadeOut(300);
+                    $('#main-app').removeClass('hidden');
+                    initializeAppLogic();
+                    
+                    return true;
+                } catch (error) {
+                    console.error('Import error:', error);
+                    throw error;
+                }
+            }
+
+            function handleImportFile() {
+                const fileInput = document.getElementById('import-world-file');
+                const file = fileInput.files[0];
+                
+                if (!file) return;
+                
+                const $status = $('#import-status');
+                $status.removeClass('hidden text-red-400 text-green-400').addClass('text-blue-400').text('正在读取文件...');
+                
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    try {
+                        const worldData = JSON.parse(e.target.result);
+                        
+                        // 验证JSON结构
+                        if (!worldData.worldName) {
+                            throw new Error('JSON文件缺少worldName字段');
+                        }
+                        
+                        $status.text('正在导入世界数据...');
+                        
+                        await importWorld(worldData, worldData.worldName);
+                        
+                        $status.removeClass('text-blue-400').addClass('text-green-400').text('世界导入成功！');
+                        
+                    } catch (error) {
+                        console.error('Import failed:', error);
+                        $status.removeClass('text-blue-400').addClass('text-red-400').text(`导入失败: ${error.message}`);
+                    }
+                };
+                
+                reader.onerror = function() {
+                    $status.removeClass('text-blue-400').addClass('text-red-400').text('文件读取失败');
+                };
+                
+                reader.readAsText(file);
+            }
+
+            // --- DATABASE (IndexedDB) SETUP ---
+            function initDB(dbName) {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(dbName, DB_VERSION);
+                    request.onerror = e => reject(`Database error: ${e.target.error}`);
+                    request.onupgradeneeded = e => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains('characters')) db.createObjectStore('characters', { keyPath: 'id', autoIncrement: true });
+                        if (!db.objectStoreNames.contains('worldbooks')) db.createObjectStore('worldbooks', { keyPath: 'id', autoIncrement: true });
+                        if (!db.objectStoreNames.contains('groups')) db.createObjectStore('groups', { keyPath: 'id', autoIncrement: true });
+                        if (!db.objectStoreNames.contains('config')) db.createObjectStore('config');
+                        if (db.objectStoreNames.contains('chat_history')) db.deleteObjectStore('chat_history');
+                        const chatStore = db.createObjectStore('chat_history', { keyPath: 'id', autoIncrement: true });
+                        chatStore.createIndex('sessionId', 'sessionId', { unique: false });
+                    };
+                    request.onsuccess = e => {
+                        console.log(`Successfully connected to world: ${dbName}`);
+                        resolve(e.target.result);
+                    };
+                });
+            }
+
+            // --- CONFIGURATION MANAGEMENT ---
+            async function loadWorldConfig() {
+                const store = getStore('config', 'readonly');
+                const [apiKeyReq, apiUrlReq, modelReq] = [store.get('apiKey'), store.get('apiUrl'), store.get('model')];
+
+                const apiKey = await new Promise(r => { apiKeyReq.onsuccess = () => r(apiKeyReq.result); apiKeyReq.onerror = () => r(undefined); });
+                const apiUrl = await new Promise(r => { apiUrlReq.onsuccess = () => r(apiUrlReq.result); apiUrlReq.onerror = () => r(undefined); });
+                const model = await new Promise(r => { modelReq.onsuccess = () => r(modelReq.result); modelReq.onerror = () => r(undefined); });
+
+                if (apiKey === undefined || apiUrl === undefined || model === undefined) {
+                    // const defaultConfig = {
+                    //     apiKey: '',
+                    //     apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
+                    //     model: 'gemini-2.0-flash'
+                    // };
+                    const defaultConfig = {
+                        apiKey: '',
+                        apiUrl: 'https://api.deepinfra.com/v1/openai/chat/completions',
+                        model: 'deepseek-ai/DeepSeek-R1-Turbo'
+                    };
+                    const writeTx = db.transaction('config', 'readwrite');
+                    const writeStore = writeTx.objectStore('config');
+                    writeStore.put(defaultConfig.apiKey, 'apiKey');
+                    writeStore.put(defaultConfig.apiUrl, 'apiUrl');
+                    writeStore.put(defaultConfig.model, 'model');
+                    await new Promise(r => writeTx.oncomplete = r);
+                    currentState.worldConfig = defaultConfig;
+                } else {
+                    currentState.worldConfig = { apiKey, apiUrl, model };
+                }
+            }
+
+            function saveWorldConfig(e) {
+                e.preventDefault();
+                const newConfig = {
+                    apiKey: $('#config-api-key').val(),
+                    apiUrl: $('#config-api-url').val(),
+                    model: $('#config-model').val()
+                };
+                const store = getStore('config', 'readwrite');
+                store.put(newConfig.apiKey, 'apiKey');
+                store.put(newConfig.apiUrl, 'apiUrl');
+                store.put(newConfig.model, 'model');
+                currentState.worldConfig = newConfig;
+                showToast('alertConfigSaved', false);
+                showEditor(null);
+            }
+
+            function editWorldConfig() {
+                clearForms();
+                $('#config-api-key').val(currentState.worldConfig.apiKey);
+                $('#config-api-url').val(currentState.worldConfig.apiUrl);
+                $('#config-model').val(currentState.worldConfig.model);
+                showEditor('config');
+            }
+
+            // --- UTILITY & CORE FUNCTIONS ---
+            function getStore(storeName, mode) {
+                return db.transaction(storeName, mode).objectStore(storeName);
+            }
+
+            function showEditor(type) {
+                $('#editor-welcome, #char-editor, #world-editor, #group-editor, #config-editor').hide();
+                if (type) $(`#${type}-editor`).show();
+                else { $('#editor-welcome').show(); clearForms(); }
+            }
+
+            function clearForms() {
+                $('form').each(function () { this.reset(); });
+                $('input[type=hidden]').val('');
+                const buttons = { 'delete-char-btn': 'deleteChar', 'delete-group-btn': 'deleteGroup', 'delete-world-btn': 'deleteEntry' };
+                for (const [btnId, textKey] of Object.entries(buttons)) {
+                    $(`#${btnId}`).hide().removeAttr('data-confirming').text(i18n[currentLang][textKey])
+                        .removeClass('bg-yellow-500 hover:bg-yellow-600').addClass('bg-red-600 hover:bg-red-700');
+                }
+            }
+
+            async function cacheAllCharacters() {
+                currentState.characterCache.clear();
+                currentState.playerCharacter = null; // 重置主角信息
+                const store = getStore('characters', 'readonly');
+                const chars = await new Promise((res, rej) => {
+                    const req = store.getAll(); req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error);
+                });
+                for (const char of chars) {
+                    currentState.characterCache.set(char.id, char);
+                    // 如果是主角，更新主角信息
+                    if (char.isPlayer) {
+                        currentState.playerCharacter = char;
+                    }
+                }
+            }
+
+            function populateEditors() {
+                const t = i18n[currentLang];
+                $('#config-editor').html(`<h3 class="text-xl font-bold mb-4">${t.configEditorTitle}</h3><div><label for="config-api-key" class="block text-sm font-medium">${t.apiKeyLabel}</label><input type="text" id="config-api-key" class="w-full mt-1 p-2 bg-gray-700 rounded-lg"></div><div><label for="config-api-url" class="block text-sm font-medium">${t.apiUrlLabel}</label><input type="text" id="config-api-url" class="w-full mt-1 p-2 bg-gray-700 rounded-lg"></div><div><label for="config-model" class="block text-sm font-medium">${t.modelLabel}</label><input type="text" id="config-model" class="w-full mt-1 p-2 bg-gray-700 rounded-lg"></div><div class="flex"><button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">${t.saveConfigBtn}</button></div>`);
+                $('#char-editor').html(`<input type="hidden" id="char-id"><div><label for="char-name" class="block text-sm font-medium">角色名称</label><input type="text" id="char-name" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></div><div><label for="char-persona" class="block text-sm font-medium">角色设定</label><textarea id="char-persona" rows="8" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></textarea></div><div><label for="char-greeting" class="block text-sm font-medium">开场白</label><textarea id="char-greeting" rows="4" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></textarea></div><div class="mb-4"><label class="flex items-center space-x-3"><input type="checkbox" id="char-is-player" class="form-checkbox h-5 w-5 bg-gray-800 text-blue-600 rounded"><span class="ml-2" id="player-char-label">${i18n[currentLang].playerCharLabel}</span></label></div><div class="flex space-x-2"><button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">保存角色</button><button type="button" id="delete-char-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg hidden" data-i18n="deleteChar">删除角色</button></div>`);
+                $('#world-editor').html(`<input type="hidden" id="world-id"><div><label for="world-keywords" class="block text-sm font-medium">关键词</label><input type="text" id="world-keywords" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></div><div><label for="world-content" class="block text-sm font-medium">内容</label><textarea id="world-content" rows="10" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></textarea></div><div class="flex space-x-2"><button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">保存条目</button><button type="button" id="delete-world-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg hidden" data-i18n="deleteEntry">删除条目</button></div>`);
+                $('#group-editor').html(`<input type="hidden" id="group-id"><div><label for="group-name" class="block text-sm font-medium">群组名称</label><input type="text" id="group-name" class="w-full mt-1 p-2 bg-gray-700 rounded-lg" required></div><div><label class="block text-sm font-medium">选择角色</label><div id="group-char-selection" class="mt-2 p-2 bg-gray-700 rounded-lg max-h-60 overflow-y-auto custom-scrollbar"></div></div><div class="flex space-x-2"><button type="submit" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg">保存群组</button><button type="button" id="delete-group-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg hidden" data-i18n="deleteGroup">删除群组</button></div>`);
+            }
+
+            function renderListItem($listEl, item, type) {
+                const $li = $('<li></li>').addClass(`sidebar-item p-2 rounded-lg cursor-pointer flex justify-between items-center ${currentState.sessionId === `${type}_${item.id}` ? 'active' : ''}`);
+
+                // 创建角色名称容器
+                const $nameContainer = $('<div></div>').addClass('flex items-center');
+
+                // 如果是主角角色，添加特殊标记
+                if (type === 'character' && item.isPlayer) {
+                    $nameContainer.append($('<span></span>').text(i18n[currentLang].playerCharCrown.split(' ')[0] + ' ').addClass('mr-1 text-yellow-400'));
+                    $li.addClass('border border-yellow-400');
+                }
+
+                // 添加角色名称
+                $nameContainer.append($('<span></span>').text(item.name));
+                $li.append($nameContainer);
+
+                // 添加编辑按钮
+                $li.attr({ 'data-id': item.id, 'data-type': type })
+                    .append($('<span></span>').text('✏️').addClass('text-sm opacity-50 hover:opacity-100')
+                        .on('click', e => {
+                            e.stopPropagation();
+                            if (type === 'character') editCharacter(item.id);
+                            else if (type === 'group') editGroup(item.id);
+                        }))
+                    .on('click', () => selectSession(item.id, type))
+                    .appendTo($listEl);
+            }
+
+            async function loadAndRenderAll() { await cacheAllCharacters(); loadCharacters(); loadGroups(); loadWorldbooks(); }
+            async function loadCharacters() {
+                const $charList = $('#char-list').empty(), $groupCharSel = $('#group-char-selection').empty();
+                const chars = Array.from(currentState.characterCache.values());
+                if (chars.length === 0) $groupCharSel.html(`<p class="text-gray-400">${i18n[currentLang].groupNeedOneChar}</p>`);
+                else chars.forEach(char => {
+                    renderListItem($charList, char, 'character');
+                    $('<label></label>').addClass('flex items-center space-x-3').append($('<input>').attr({ type: 'checkbox', value: char.id }).addClass('form-checkbox h-5 w-5 bg-gray-800 text-purple-600 rounded')).append($('<span></span>').text(char.name)).appendTo($groupCharSel);
+                });
+            }
+            async function loadGroups() {
+                const $groupList = $('#group-list').empty();
+                const groups = await new Promise(r => getStore('groups', 'readonly').getAll().onsuccess = e => r(e.target.result));
+                groups.forEach(group => renderListItem($groupList, group, 'group'));
+            }
+            async function loadWorldbooks() {
+                const $listEl = $('#world-list').empty();
+                const entries = await new Promise(r => getStore('worldbooks', 'readonly').getAll().onsuccess = e => r(e.target.result));
+                entries.forEach(entry => {
+                    $('<li></li>').addClass('sidebar-item p-2 rounded-lg cursor-pointer flex justify-between items-center').text(`${entry.keywords.split(/[,，]/)[0].trim()}...`).attr('title', entry.keywords).append($('<span></span>').text('✏️').addClass('text-sm opacity-50 hover:opacity-100').on('click', e => { e.stopPropagation(); editWorldbook(entry.id); })).appendTo($listEl);
+                });
+            }
+
+            // --- CRUD OPERATIONS ---
+            function setupDeleteConfirmation(btnId, originalTextKey, deleteFn) {
+                const $btn = $(`#${btnId}`);
+                const originalText = i18n[currentLang][originalTextKey];
+                if ($btn.attr('data-confirming')) deleteFn();
+                else {
+                    $btn.attr('data-confirming', 'true').text(i18n[currentLang].deleteConfirm).removeClass('bg-red-600 hover:bg-red-700').addClass('bg-yellow-500 hover:bg-yellow-600');
+                    setTimeout(() => { if ($btn.attr('data-confirming')) $btn.removeAttr('data-confirming').text(originalText).removeClass('bg-yellow-500 hover:bg-yellow-600').addClass('bg-red-600 hover:bg-red-700'); }, 3000);
+                }
+            }
+
+            function saveCharacter(e) {
+                e.preventDefault();
+                const id = $('#char-id').val(), name = $('#char-name').val().trim().replace(/\s+/g, '_');
+                if (!name) return showToast('charNameCannotBeEmpty');
+                const isPlayer = $('#char-is-player').prop('checked');
+                const data = { name, persona: $('#char-persona').val(), greeting: $('#char-greeting').val(), isPlayer };
+
+                // 如果设置为主角，先清除其他主角设置
+                if (isPlayer) {
+                    const charStore = getStore('characters', 'readwrite');
+                    const getAllReq = charStore.getAll();
+                    getAllReq.onsuccess = function () {
+                        const allChars = getAllReq.result;
+                        const playerChars = allChars.filter(char => char.isPlayer && (!id || char.id !== parseInt(id)));
+
+                        // 清除其他主角设置
+                        playerChars.forEach(char => {
+                            char.isPlayer = false;
+                            charStore.put(char);
+                        });
+
+                        // 保存当前角色
+                        const saveReq = id ? charStore.put({ ...data, id: parseInt(id) }) : charStore.add(data);
+                        saveReq.onsuccess = function (e) {
+                            const charId = id ? parseInt(id) : e.target.result;
+                            if (isPlayer) {
+                                // 更新当前主角
+                                const char = { ...data, id: charId };
+                                currentState.playerCharacter = char;
+                                currentState.characterCache.set(charId, char);
+                            } else if (currentState.playerCharacter && currentState.playerCharacter.id === charId) {
+                                // 如果取消了当前主角的设置
+                                currentState.playerCharacter = null;
+                            }
+                            showEditor(null);
+                            loadAndRenderAll();
+                        };
+                    };
+                } else {
+                    // 普通角色直接保存
+                    const req = id ? getStore('characters', 'readwrite').put({ ...data, id: parseInt(id) }) : getStore('characters', 'readwrite').add(data);
+                    req.onsuccess = (e) => {
+                        const charId = id ? parseInt(id) : e.target.result;
+                        if (currentState.playerCharacter && currentState.playerCharacter.id === charId) {
+                            // 如果取消了当前主角的设置
+                            currentState.playerCharacter = null;
+                        }
+                        showEditor(null);
+                        loadAndRenderAll();
+                    };
+                }
+            }
+            function editCharacter(id) {
+                const char = currentState.characterCache.get(id); if (!char) return;
+                clearForms();
+                $('#char-id').val(char.id);
+                $('#char-name').val(char.name);
+                $('#char-persona').val(char.persona);
+                $('#char-greeting').val(char.greeting);
+                $('#char-is-player').prop('checked', !!char.isPlayer);
+                $('#delete-char-btn').show();
+                showEditor('char');
+            }
+            function deleteCharacter() {
+                setupDeleteConfirmation('delete-char-btn', 'deleteChar', async () => {
+                    const id = parseInt($('#char-id').val()); if (!id) return;
+                    await new Promise(r => getStore('characters', 'readwrite').delete(id).onsuccess = r);
+                    const groupStore = getStore('groups', 'readwrite');
+                    const groups = await new Promise(r => groupStore.getAll().onsuccess = e => r(e.target.result));
+                    for (const group of groups.filter(g => g.characterIds.includes(id))) {
+                        await new Promise(r => groupStore.delete(group.id).onsuccess = r);
+                        await deleteChatHistory(`group_${group.id}`);
+                    }
+                    await deleteChatHistory(`char_${id}`);
+                    await loadAndRenderAll(); showEditor(null);
+                    if (currentState.sessionId?.includes(`_${id}`)) showWelcomeScreen();
+                });
+            }
+
+            function saveGroup(e) {
+                e.preventDefault();
+                const id = $('#group-id').val();
+                const characterIds = $('#group-char-selection input:checked').map((_, el) => parseInt($(el).val())).get();
+                if (characterIds.length < 1) return showToast('groupNeedOneChar');
+                const data = { name: $('#group-name').val(), characterIds };
+                const req = id ? getStore('groups', 'readwrite').put({ ...data, id: parseInt(id) }) : getStore('groups', 'readwrite').add(data);
+                req.onsuccess = () => { showEditor(null); loadAndRenderAll(); };
+            }
+            function editGroup(id) {
+                getStore('groups', 'readonly').get(id).onsuccess = e => {
+                    const group = e.target.result; clearForms();
+                    $('#group-id').val(group.id); $('#group-name').val(group.name);
+                    $('#group-char-selection input').each(function () { $(this).prop('checked', group.characterIds.includes(parseInt($(this).val()))); });
+                    $('#delete-group-btn').show(); showEditor('group');
+                };
+            }
+            function deleteGroup() {
+                setupDeleteConfirmation('delete-group-btn', 'deleteGroup', async () => {
+                    const id = parseInt($('#group-id').val()); if (!id) return;
+                    await new Promise(r => getStore('groups', 'readwrite').delete(id).onsuccess = r);
+                    await deleteChatHistory(`group_${id}`);
+                    await loadAndRenderAll(); showEditor(null);
+                    if (currentState.sessionId === `group_${id}`) showWelcomeScreen();
+                });
+            }
+
+            function saveWorldbook(e) {
+                e.preventDefault();
+                const id = $('#world-id').val();
+                const data = { keywords: $('#world-keywords').val(), content: $('#world-content').val() };
+                const req = id ? getStore('worldbooks', 'readwrite').put({ ...data, id: parseInt(id) }) : getStore('worldbooks', 'readwrite').add(data);
+                req.onsuccess = () => { showEditor(null); loadAndRenderAll(); };
+            }
+            function editWorldbook(id) {
+                getStore('worldbooks', 'readonly').get(id).onsuccess = e => {
+                    const entry = e.target.result; clearForms();
+                    $('#world-id').val(entry.id); $('#world-keywords').val(entry.keywords);
+                    $('#world-content').val(entry.content);
+                    $('#delete-world-btn').show(); showEditor('world');
+                };
+            }
+            function deleteWorldbook() {
+                setupDeleteConfirmation('delete-world-btn', 'deleteEntry', () => {
+                    const id = parseInt($('#world-id').val()); if (!id) return;
+                    getStore('worldbooks', 'readwrite').delete(id).onsuccess = () => { loadAndRenderAll(); showEditor(null); };
+                });
+            }
+
+            // --- SESSION & CHAT LOGIC ---
+            function showWelcomeScreen() { $('#chat-area').hide(); $('#chat-welcome').show(); $('.sidebar-item').removeClass('active'); currentState.sessionId = null; currentState.sessionType = null; }
+            async function selectSession(id, type) {
+                currentState.sessionId = `${type}_${id}`; currentState.sessionType = type;
+                $('.sidebar-item').removeClass('active');
+                $(`.sidebar-item[data-id='${id}'][data-type='${type}']`).addClass('active');
+                $('#chat-welcome').hide(); $('#chat-area').show();
+                let sessionName = '', participants = '', initialMessages = [];
+                if (type === 'character') {
+                    const char = currentState.characterCache.get(id);
+                    sessionName = char.name; participants = `与 ${char.name} 对话中`;
+                    initialMessages.push({ role: 'char', content: char.greeting, characterId: id, characterName: char.name });
+                } else {
+                    const group = await new Promise(r => getStore('groups', 'readonly').get(id).onsuccess = e => r(e.target.result));
+                    sessionName = group.name;
+                    const charNames = group.characterIds.map(cid => currentState.characterCache.get(cid)?.name || '未知');
+                    participants = `参与者: ${charNames.join(', ')}`;
+                    initialMessages.push({ role: 'system', content: `群聊 "${group.name}" 开始了。` });
+                }
+                $('#chat-session-name').text(sessionName); $('#chat-participants').text(participants);
+                loadChatHistory(currentState.sessionId, initialMessages);
+            }
+            async function loadChatHistory(sessionId, initialMessages) {
+                const messages = await new Promise(r => getStore('chat_history', 'readonly').index('sessionId').getAll(sessionId).onsuccess = e => r(e.target.result));
+                $('#chat-history').empty();
+                if (messages.length === 0 && initialMessages.length > 0) {
+                    for (const msg of initialMessages) {
+                        addMessageToChat(msg.role, msg.content, msg.characterName);
+                        if (msg.role !== 'system') saveMessage(sessionId, msg.role, msg.content, msg.characterId, msg.characterName);
+                    }
+                } else messages.forEach(msg => addMessageToChat(msg.role, msg.content, msg.characterName));
+            }
+            function addMessageToChat(role, content, characterName = null) {
+                const $historyContainer = $('#chat-history-container');
+                const $bubble = $('<div></div>').addClass('p-3 rounded-lg chat-bubble').text(content);
+                const $msgWrapper = $('<div></div>').addClass('flex flex-col').append($bubble);
+                if (role === 'user') $msgWrapper.addClass('items-end').find('.chat-bubble').addClass('chat-bubble-user');
+                else if (role === 'system') $msgWrapper.addClass('items-center').find('.chat-bubble').addClass('text-sm text-gray-400 italic text-center');
+                else $msgWrapper.addClass('items-start whitespace-pre-line').find('.chat-bubble').addClass('chat-bubble-char').end().prepend($('<div></div>').addClass('speaker-name').text(characterName || '旁白'));
+                $('#chat-history').append($msgWrapper);
+                $historyContainer.scrollTop($historyContainer[0].scrollHeight);
+            }
+            function saveMessage(sessionId, role, content, characterId = null, characterName = null) {
+                getStore('chat_history', 'readwrite').add({ sessionId, role, content, characterId, characterName, timestamp: new Date() });
+            }
+            function deleteChatHistory(sessionId) {
+                const index = getStore('chat_history', 'readwrite').index('sessionId');
+                const request = index.openCursor(IDBKeyRange.only(sessionId));
+                request.onsuccess = e => { const cursor = e.target.result; if (cursor) { cursor.delete(); cursor.continue(); } };
+                return request;
+            }
+            async function handleSendMessage() {
+                const text = $('#user-input').val().trim();
+                if (!text || !currentState.sessionId) return;
+
+                // 确定消息发送者角色
+                const isPlayerSpeaking = !!currentState.playerCharacter;
+                const role = isPlayerSpeaking ? 'char' : 'user';
+                const characterName = isPlayerSpeaking ? currentState.playerCharacter.name : null;
+                const characterId = isPlayerSpeaking ? currentState.playerCharacter.id : null;
+
+                // 添加消息到聊天界面并保存
+                addMessageToChat(role, text, characterName);
+                saveMessage(currentState.sessionId, role, text, characterId, characterName);
+
+                $('#user-input').val('');
+                addMessageToChat('char', '思考中...', 'AI');
+
+                try {
+                    const participants = await getSessionParticipants();
+                    let mentionedChar = null;
+                    const match = text.match(/@([\p{L}\p{N}_]+)/u);
+                    if (match) {
+                        const mentionedName = match[1];
+                        mentionedChar = participants.find(p => p.name === mentionedName || p.name.toLowerCase() === mentionedName.toLowerCase());
+                    }
+
+                    // 构建提示并获取AI响应
+                    const prompt = await constructPrompt(mentionedChar ? mentionedChar.name : null);
+                    const responseText = await getAIResponse(prompt);
+                    $('#chat-history').children().last().remove();
+
+                    // 处理AI响应 - 首先清理<think>标签
+                    let cleanedResponse = responseText;
+                    // 移除<think>...</think>标签及其内容
+                    cleanedResponse = cleanedResponse.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+
+                    let respCharName = null, content = cleanedResponse;
+                    const parts = cleanedResponse.split(':');
+
+                    // 如果有@提及，优先让被@的角色回应
+                    if (mentionedChar && parts.length > 1) {
+                        const firstPart = parts[0].trim();
+                        // 检查AI是否按照指定格式回复（角色名: 对话内容）
+                        if (firstPart === mentionedChar.name || firstPart.toLowerCase() === mentionedChar.name.toLowerCase()) {
+                            respCharName = mentionedChar.name;
+                            content = parts.slice(1).join(':').trim();
+                        } else {
+                            // 如果AI没有按照格式回复，强制设置为被@的角色
+                            respCharName = mentionedChar.name;
+                            content = cleanedResponse;
+                        }
+                    } else {
+                        // 没有@提及时，尝试解析角色名
+                        const speakingChar = participants.find(p => p.name === parts[0].trim());
+                        if (speakingChar && parts.length > 1) {
+                            respCharName = speakingChar.name;
+                            content = parts.slice(1).join(':').trim();
+                        }
+                    }
+
+                    // 添加AI响应到聊天界面并保存
+                    const finalCharId = respCharName ? participants.find(p => p.name === respCharName)?.id : null;
+                    const displayName = respCharName || (mentionedChar ? mentionedChar.name : null);
+                    addMessageToChat('char', content, displayName);
+                    saveMessage(currentState.sessionId, 'char', content, finalCharId, displayName);
+                } catch (error) {
+                    console.error('Error:', error);
+                    $('#chat-history').children().last().remove();
+                    addMessageToChat('char', `抱歉，我出错了: ${error.message}`, '系统');
+                }
+            }
+            async function getSessionParticipants() {
+                if (!currentState.sessionId) return [];
+                const [type, idStr] = currentState.sessionId.split('_');
+                const id = parseInt(idStr);
+                if (type === 'character') return [currentState.characterCache.get(id)].filter(Boolean);
+                if (type === 'group') {
+                    const group = await new Promise(r => getStore('groups', 'readonly').get(id).onsuccess = e => r(e.target.result));
+                    return group ? group.characterIds.map(cid => currentState.characterCache.get(cid)).filter(Boolean) : [];
+                } return [];
+            }
+            async function constructPrompt(targetCharacterName = null) {
+                const participants = await getSessionParticipants();
+                const history = (await new Promise(r => getStore('chat_history', 'readonly').index('sessionId').getAll(currentState.sessionId).onsuccess = e => r(e.target.result))).slice(-15);
+                const convoText = history.map(h => h.content).join('\n');
+                const worldbooks = await new Promise(r => getStore('worldbooks', 'readonly').getAll().onsuccess = e => r(e.target.result));
+                const triggeredWorlds = worldbooks.filter(w => w.keywords.split(/[,，]/).some(k => convoText.toLowerCase().includes(k.trim().toLowerCase())));
+
+                // 构建场景角色部分
+                let prompt = "[System Note: This is a roleplay conversation.]\n\n== CHARACTERS IN THIS SCENE ==\n";
+                participants.forEach(p => { prompt += `Name: ${p.name}\nPersona: ${p.persona}\n\n`; });
+
+                // 添加世界设定
+                if (triggeredWorlds.length > 0) {
+                    prompt += "== RELEVANT WORLDBOOK ENTRIES ==\n";
+                    triggeredWorlds.forEach(w => prompt += `Content for "${w.keywords}": ${w.content}\n\n`);
+                }
+
+                // 添加对话历史
+                prompt += "== RECENT CONVERSATION HISTORY ==\n";
+
+                // 检查是否有主角角色
+                const hasPlayerCharacter = !!currentState.playerCharacter;
+
+                // 根据是否有主角角色，调整历史消息的显示方式
+                history.forEach(msg => {
+                    let speakerName;
+                    if (msg.role === 'user') {
+                        // 如果没有主角，显示为User，否则已经在characterName中显示了主角名称
+                        speakerName = hasPlayerCharacter ? (msg.characterName || 'User') : 'User';
+                    } else {
+                        speakerName = msg.characterName || '旁白';
+                    }
+                    prompt += `${speakerName}: ${msg.content}\n`;
+                });
+
+                // 构建角色扮演指令
+                let roleplayInstruction = '';
+                const isGroup = currentState.sessionType === 'group' && participants.length > 1;
+
+                // 添加基础AI控制规则
+                let aiControlRules = 'IMPORTANT: AI can only control the behaviors and dialogues of non-player characters, and must never speak or act on behalf of the player character.';
+                if (hasPlayerCharacter) {
+                    aiControlRules += `The player character is ${currentState.playerCharacter.name}, and the AI must never control this character.`;
+                }
+
+                if (isGroup) {
+                    if (targetCharacterName) {
+                        // 如果有主角，调整提示以反映用户是以主角身份说话
+                        if (hasPlayerCharacter) {
+                            roleplayInstruction = `${aiControlRules} ${currentState.playerCharacter.name} speaks directly to ${targetCharacterName}. ${targetCharacterName} MUST respond. Format: '${targetCharacterName}: Their dialogue'.`;
+                        } else {
+                            roleplayInstruction = `${aiControlRules} The User speaks directly to ${targetCharacterName}. ${targetCharacterName} MUST respond. Format: '${targetCharacterName}: Their dialogue'.`;
+                        }
+                    } else {
+                        roleplayInstruction = `${aiControlRules} You are the roleplay master, responsible for driving the story forward. Based on the characters and world setting, you MUST decide who speaks next OR provide narration. Narration is crucial for describing the environment, introducing new events, or revealing challenges. For example, 'A cold wind blows through the trees, carrying the scent of decay.' Use narration to make the story dynamic and interesting. For character dialogue, use the format 'CharacterName: Their dialogue'. For narration, omit the prefix.`;
+                    }
+                } else {
+                    // 单角色对话
+                    if (hasPlayerCharacter && participants[0].name === currentState.playerCharacter.name) {
+                        roleplayInstruction = `${aiControlRules} Wait for the input from the player character ${currentState.playerCharacter.name}. The AI cannot speak on behalf of the player.`;
+                    } else {
+                        roleplayInstruction = `${aiControlRules} Continue as ${participants[0].name}. Do not include your name as a prefix.`;
+                    }
+                }
+
+                // 添加语言指令
+                const langInstruction = currentLang === 'zh-CN' ? '你必须只使用简体中文进行回复。' : 'You MUST respond only in English.';
+
+                // 如果有主角，添加额外说明
+                if (hasPlayerCharacter) {
+                    prompt += `\n[System Note: 严格规则：玩家角色是 ${currentState.playerCharacter.name}，AI绝不能代替此角色说话或行动。剧情只能根据 ${currentState.playerCharacter.name} 的对话来推进。如果没有说明角色应该互相不认识，应该随着角色之间的对话来缓慢推进剧情。 ${roleplayInstruction} Final instruction: ${langInstruction}]`;
+                } else {
+                    prompt += `\n[System Note: ${roleplayInstruction} Final instruction: ${langInstruction}]`;
+                }
+
+                return prompt;
+            }
+            async function getAIResponse(prompt) {
+                console.log("--- PROMPT SENT TO AI ---\n", prompt);
+                const { apiKey, apiUrl, model } = currentState.worldConfig;
+                let response;
+                if (apiUrl.includes('googleapis.com')) {
+                    const fullApiUrl = `${apiUrl}?key=${apiKey}`;
+                    response = await fetch(fullApiUrl, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }] })
+                    });
+                } else {
+                    response = await fetch(apiUrl, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                        body: JSON.stringify({ model: model, messages: [{ role: 'user', content: prompt }] })
+                    });
+                }
+                if (!response.ok) {
+                    const errorBody = await response.json(); throw new Error(`API Error: ${errorBody.error?.message || JSON.stringify(errorBody)}`);
+                }
+                const result = await response.json();
+
+                if (result.choices && result.choices[0]?.message) {
+                    let content;
+                    if (result.choices[0].message?.content) {
+                        content = result.choices[0].message.content;
+                    } else if (result.choices[0].message?.reasoning_content) {
+                        content = result.choices[0].message?.reasoning_content;
+                    }
+                    // 清理思考标签并替换英文Narration为中文旁白
+                    return content.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/\[?Narration:/gi, '旁白:');
+                } else {
+                    if (result.promptFeedback?.blockReason) {
+                        return `[内容被阻止: ${result.promptFeedback.blockReason}]`;
+                    }
+                    return "[AI未能生成有效回复]";
+                }
+            }
+
+            // --- @MENTION SUGGESTIONS ---
+            const $userInput = $('#user-input'), $suggestionsBox = $('#mention-suggestions'); let mentionStartIndex = -1;
+            async function handleMentionInput() {
+                const textUpToCursor = $userInput.val().substring(0, $userInput[0].selectionStart);
+                const mentionMatch = textUpToCursor.match(/@([\p{L}\p{N}_]*)$/u);
+                if (mentionMatch) {
+                    const participants = await getSessionParticipants();
+                    if (participants.length > 1) {
+                        mentionStartIndex = mentionMatch.index;
+                        const partialName = mentionMatch[1].toLowerCase();
+                        const suggestions = participants.filter(p => p.name.toLowerCase().startsWith(partialName));
+                        renderMentionSuggestions(suggestions); return;
+                    }
+                } hideMentionSuggestions();
+            }
+            function renderMentionSuggestions(suggestions) {
+                if (suggestions.length === 0) return hideMentionSuggestions();
+                $suggestionsBox.empty();
+                suggestions.forEach(char => {
+                    $('<div></div>').text(char.name).addClass('p-2 px-3 cursor-pointer hover:bg-gray-600 rounded-md')
+                        .on('mousedown', e => { e.preventDefault(); selectMention(char.name); }).appendTo($suggestionsBox);
+                });
+                $suggestionsBox.show();
+            }
+            function hideMentionSuggestions() { if ($suggestionsBox.is(':visible')) $suggestionsBox.hide(); mentionStartIndex = -1; }
+            function selectMention(name) {
+                const currentText = $userInput.val(); const textBefore = currentText.substring(0, mentionStartIndex);
+                const textAfter = currentText.substring($userInput[0].selectionStart);
+                $userInput.val(`${textBefore}@${name} ${textAfter}`);
+                hideMentionSuggestions(); $userInput.focus();
+                const newCursorPos = (textBefore + `@${name} `).length;
+                $userInput[0].setSelectionRange(newCursorPos, newCursorPos);
+            }
+
+            // --- APP INITIALIZATION ---
+            function initializeAppLogic() {
+                populateEditors();
+                $('#config-editor').on('submit', saveWorldConfig);
+                $('#char-editor').on('submit', saveCharacter);
+                $('#delete-char-btn').on('click', deleteCharacter);
+                $('#world-editor').on('submit', saveWorldbook);
+                $('#delete-world-btn').on('click', deleteWorldbook);
+                $('#group-editor').on('submit', saveGroup);
+                $('#delete-group-btn').on('click', deleteGroup);
+
+                loadAndRenderAll();
+                $('#new-char-btn').on('click', () => showEditor('char'));
+                $('#new-group-btn').on('click', () => showEditor('group'));
+                $('#new-world-btn').on('click', () => showEditor('world'));
+                $('#edit-config-btn').on('click', () => editWorldConfig());
+                $('#send-btn').on('click', () => { handleSendMessage(); hideMentionSuggestions(); });
+                $userInput.on('keydown', e => {
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); hideMentionSuggestions(); }
+                    if (e.key === 'Escape') hideMentionSuggestions();
+                });
+                $userInput.on('input click', handleMentionInput); $userInput.on('blur', () => setTimeout(hideMentionSuggestions, 150));
+            }
+
+            // --- START THE APP ---
+            $('#create-world-btn').on('click', () => {
+                const newWorldName = $('#new-world-name').val().trim();
+                enterWorld(newWorldName);
+            });
+            $('#enter-world-btn').on('click', () => {
+                const selectedWorld = $('#world-select-dropdown').val();
+                if (selectedWorld) enterWorld(selectedWorld);
+                else showToast('alertSelectWorld');
+            });
+            $('#new-world-name').on('keydown', e => { if (e.key === 'Enter') $('#create-world-btn').trigger('click'); });
+            $('#import-world-btn').on('click', () => $('#import-world-file').click());
+            $('#import-world-file').on('change', handleImportFile);
+            $('#lang-switcher').on('click', () => { const newLang = currentLang === 'zh-CN' ? 'en-US' : 'zh-CN'; setLanguage(newLang, true); });
+
+            setLanguage(getLanguage());
+            showWorldSelectionDialog();
+
+        });
+    </script>
+</body>
+
+</html>
