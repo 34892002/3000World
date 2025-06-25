@@ -11,7 +11,11 @@
   },
   "dependencies": {
     "@fontsource/roboto": "5.2.5",
+    "@langchain/core": "^0.3.61",
+    "@langchain/langgraph": "^0.3.5",
+    "@langchain/openai": "^0.5.15",
     "@mdi/font": "7.4.47",
+    "langchain": "^0.3.29",
     "vue": "^3.5.13",
     "vue-i18n": "^11.1.5",
     "vuetify": "^3.8.1"

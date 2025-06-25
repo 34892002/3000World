@@ -177,7 +177,7 @@ class Database {
       const defaultConfig = {
         apiKey: '',
         apiUrl: 'https://text.pollinations.ai/openai',
-        model: 'deepseek'
+        model: 'openai'
       };
       
       await this.saveWorldConfig(defaultConfig);
