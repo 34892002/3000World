@@ -176,8 +176,8 @@ class Database {
     if (apiKey === undefined || apiUrl === undefined || model === undefined) {
       const defaultConfig = {
         apiKey: '',
-        apiUrl: 'https://api.deepinfra.com/v1/openai/chat/completions',
-        model: 'deepseek-ai/DeepSeek-R1-Turbo'
+        apiUrl: 'https://text.pollinations.ai/openai',
+        model: 'deepseek'
       };
       
       await this.saveWorldConfig(defaultConfig);
