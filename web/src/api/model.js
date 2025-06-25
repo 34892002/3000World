@@ -110,7 +110,7 @@ export function useAIApi() {
       });
       console.log("@LangChain Res:", response);
       // 解析响应内容
-      const [ HumanMessage, AIMessage ] = response.messages;
+      const [HumanMessage, AIMessage] = response.messages;
       return AIMessage.content;
     } catch (error) {
       console.error("获取AI响应失败:", error.message);
@@ -120,11 +120,34 @@ export function useAIApi() {
     }
   };
 
+  const createEmbeddings = async (input) => {
+    const model = "Qwen/Qwen3-Embedding-4B";
+    const token = "Bearer sk-ttzszahzynqptqvpnjbmysdzauwqujzrgnfignmqmitzpkdk";
+    const options = {
+      method: "POST",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: `{"model":"${model}","input":"${input}"}`,
+    };
+
+    try {
+      const response = await fetch("https://api.siliconflow.cn/v1/embeddings", options);
+      const data = await response.json();
+      return data.data[0].embedding;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
   return {
     isLoading,
     cleanAIResponse,
     getAIResponse,
     createChatModel,
     parseAIResponse,
+    createEmbeddings,
   };
 }
