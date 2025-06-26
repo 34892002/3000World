@@ -4,21 +4,49 @@
 
 import { SortedArray } from "./sortedarray.js";
 
-const DB_DEFAUlTS = {
+const DB_DEFAULTS = {
   dbName: "vectorDB",
   objectStore: "vectors",
 };
 
+/**
+ * 优化的余弦相似度计算函数
+ * 单次循环计算所有值，避免重复遍历
+ * @param {number[]} a - 第一个向量
+ * @param {number[]} b - 第二个向量
+ * @returns {number} 余弦相似度值
+ */
 function cosineSimilarity(a, b) {
-  const dotProduct = a.reduce((sum, aVal, idx) => sum + aVal * b[idx], 0);
-  const aMagnitude = Math.sqrt(a.reduce((sum, aVal) => sum + aVal * aVal, 0));
-  const bMagnitude = Math.sqrt(b.reduce((sum, bVal) => sum + bVal * bVal, 0));
-  return dotProduct / (aMagnitude * bMagnitude);
+  // 添加维度检查
+  if (a.length !== b.length) {
+    throw new Error(`向量维度不匹配: a=${a.length}, b=${b.length}`);
+  }
+
+  let dotProduct = 0;
+  let aMagnitudeSquared = 0;
+  let bMagnitudeSquared = 0;
+
+  for (let i = 0; i < a.length; i++) {
+    const aVal = a[i];
+    const bVal = b[i];
+
+    dotProduct += aVal * bVal;
+    aMagnitudeSquared += aVal * aVal;
+    bMagnitudeSquared += bVal * bVal;
+  }
+
+  const magnitude = Math.sqrt(aMagnitudeSquared * bMagnitudeSquared);
+  return magnitude === 0 ? 0 : dotProduct / magnitude;
 }
 
+/**
+ * 创建IndexedDB数据库连接
+ * @param {Object} options - 数据库配置选项
+ * @returns {Promise<IDBDatabase>} 数据库实例
+ */
 async function create(options) {
   const { dbName, objectStore, vectorPath } = {
-    ...DB_DEFAUlTS,
+    ...DB_DEFAULTS,
     ...options,
   };
   return new Promise((resolve, reject) => {
@@ -44,15 +72,29 @@ class VectorDB {
   #objectStore;
   #vectorPath;
   #db;
+  #vectorDimension = null; // 向量维度缓存
+  #queryCache = new Map(); // 查询结果缓存
+  #cacheSize = 100; // 缓存大小限制
+  #batchSize = 1000; // 批处理大小
+  #metrics = {
+    // 性能监控指标
+    queryCount: 0,
+    avgQueryTime: 0,
+    totalQueryTime: 0,
+    insertCount: 0,
+  };
 
+  /**
+   * 构造函数
+   * @param {Object} options - 配置选项
+   */
   constructor(options) {
     const { dbName, objectStore, vectorPath } = {
-      ...DB_DEFAUlTS,
+      ...DB_DEFAULTS,
       ...options,
     };
 
     if (!dbName) {
-      // Note only used in create()
       throw new Error("dbName is required");
     }
 
@@ -66,10 +108,109 @@ class VectorDB {
 
     this.#objectStore = objectStore;
     this.#vectorPath = vectorPath;
-
     this.#db = create(options);
   }
 
+  /**
+   * 向量维度验证
+   * @param {number[]} vector - 要验证的向量
+   */
+  #validateVector(vector) {
+    if (!Array.isArray(vector)) {
+      throw new Error(
+        `${this.#vectorPath} on 'object' is expected to be an Array`
+      );
+    }
+
+    if (!this.#vectorDimension) {
+      this.#vectorDimension = vector.length;
+    } else if (vector.length !== this.#vectorDimension) {
+      throw new Error(
+        `向量维度不匹配: 期望 ${this.#vectorDimension}, 实际 ${vector.length}`
+      );
+    }
+  }
+
+  /**
+   * 向量压缩存储，降低精度提升效率
+   * @param {number[]} vector - 原始向量
+   * @returns {Float32Array} 压缩后的向量
+   */
+  #compressVector(vector) {
+    return new Float32Array(vector);
+  }
+
+  /**
+   * 预计算向量模长
+   * @param {number[]} vector - 输入向量
+   * @returns {Object} 包含模长和归一化向量的对象
+   */
+  #precomputeVectorData(vector) {
+    const magnitude = Math.sqrt(
+      vector.reduce((sum, val) => sum + val * val, 0)
+    );
+    const normalizedVector =
+      magnitude > 0 ? vector.map((v) => v / magnitude) : vector;
+    return { magnitude, normalizedVector };
+  }
+
+  /**
+   * 生成缓存键
+   * @param {number[]} vector - 查询向量
+   * @param {Object} options - 查询选项
+   * @returns {string} 缓存键
+   */
+  #generateCacheKey(vector, options) {
+    // 使用更安全的哈希方法
+    const vectorHash = vector
+      .reduce((hash, val, i) => {
+        return hash + val * (i + 1);
+      }, 0)
+      .toFixed(6);
+    return `${vectorHash}_${JSON.stringify(options)}`;
+  }
+
+  /**
+   * 更新性能指标
+   * @param {number} queryTime - 查询耗时
+   */
+  #updateQueryMetrics(queryTime) {
+    this.#metrics.queryCount++;
+    this.#metrics.totalQueryTime += queryTime;
+    this.#metrics.avgQueryTime =
+      this.#metrics.totalQueryTime / this.#metrics.queryCount;
+  }
+
+  /**
+   * 批量处理向量相似度计算
+   * @param {Array} batch - 批量数据
+   * @param {number[]} queryVector - 查询向量
+   * @param {SortedArray} similarities - 相似度结果集
+   * @param {number} threshold - 相似度阈值
+   */
+  #processBatch(batch, queryVector, similarities, threshold) {
+    for (const item of batch) {
+      const vectorValue = item.value[this.#vectorPath];
+      if (vectorValue && vectorValue.length === queryVector.length) {
+        const similarity = cosineSimilarity(queryVector, vectorValue);
+
+        // 只保留超过阈值的结果
+        if (similarity >= threshold) {
+          similarities.insert({
+            object: item.value,
+            key: item.key,
+            similarity,
+          });
+        }
+      }
+    }
+  }
+
+  /**
+   * 插入单个对象
+   * @param {Object} object - 要插入的对象
+   * @returns {Promise<number>} 插入的键值
+   */
   async insert(object) {
     if (this.#vectorPath in object == false) {
       throw new Error(
@@ -77,11 +218,17 @@ class VectorDB {
       );
     }
 
-    if (Array.isArray(object[this.#vectorPath]) == false) {
-      throw new Error(
-        `${this.#vectorPath} on 'object' is expected to be an Array`
-      );
-    }
+    const vector = object[this.#vectorPath];
+    this.#validateVector(vector);
+
+    // 预计算向量数据并压缩存储
+    const { magnitude, normalizedVector } = this.#precomputeVectorData(vector);
+    const optimizedObject = {
+      ...object,
+      [this.#vectorPath]: this.#compressVector(vector),
+      _magnitude: magnitude,
+      _normalizedVector: this.#compressVector(normalizedVector),
+    };
 
     const db = await this.#db;
     const storeName = this.#objectStore;
@@ -89,9 +236,13 @@ class VectorDB {
     const transaction = db.transaction([storeName], "readwrite");
     const store = transaction.objectStore(storeName);
 
-    const request = store.add(object);
+    const request = store.add(optimizedObject);
+
     return new Promise((resolve, reject) => {
       request.onsuccess = (event) => {
+        this.#metrics.insertCount++;
+        // 清理缓存，因为数据已更新
+        this.clearCache();
         resolve(event.target.result);
       };
 
@@ -101,6 +252,57 @@ class VectorDB {
     });
   }
 
+  /**
+   * 批量插入对象
+   * @param {Array} objects - 要插入的对象数组
+   * @returns {Promise<Array>} 插入的键值数组
+   */
+  async batchInsert(objects) {
+    const db = await this.#db;
+    const storeName = this.#objectStore;
+    const transaction = db.transaction([storeName], "readwrite");
+    const store = transaction.objectStore(storeName);
+
+    const promises = objects.map((object) => {
+      if (this.#vectorPath in object == false) {
+        throw new Error(
+          `${this.#vectorPath} expected to be present in object being inserted`
+        );
+      }
+
+      const vector = object[this.#vectorPath];
+      this.#validateVector(vector);
+
+      // 预计算向量数据并压缩存储
+      const { magnitude, normalizedVector } =
+        this.#precomputeVectorData(vector);
+      const optimizedObject = {
+        ...object,
+        [this.#vectorPath]: this.#compressVector(vector),
+        _magnitude: magnitude,
+        _normalizedVector: this.#compressVector(normalizedVector),
+      };
+
+      return new Promise((resolve, reject) => {
+        const request = store.add(optimizedObject);
+        request.onsuccess = () => {
+          this.#metrics.insertCount++;
+          resolve(request.result);
+        };
+        request.onerror = () => reject(request.error);
+      });
+    });
+
+    const results = await Promise.all(promises);
+    this.clearCache(); // 清理缓存
+    return results;
+  }
+
+  /**
+   * 删除对象
+   * @param {number} key - 要删除的键值
+   * @returns {Promise<void>}
+   */
   async delete(key) {
     if (key == null) {
       throw new Error(`Unable to delete object without a key`);
@@ -116,6 +318,7 @@ class VectorDB {
 
     return new Promise((resolve, reject) => {
       request.onsuccess = (event) => {
+        this.clearCache(); // 清理缓存
         resolve(event.target.result);
       };
 
@@ -125,6 +328,12 @@ class VectorDB {
     });
   }
 
+  /**
+   * 更新对象
+   * @param {number} key - 要更新的键值
+   * @param {Object} object - 新的对象数据
+   * @returns {Promise<number>}
+   */
   async update(key, object) {
     if (key == null) {
       throw new Error(`Unable to update object without a key`);
@@ -136,11 +345,17 @@ class VectorDB {
       );
     }
 
-    if (Array.isArray(object[this.#vectorPath]) == false) {
-      throw new Error(
-        `${this.#vectorPath} on 'object' is expected to be an Array`
-      );
-    }
+    const vector = object[this.#vectorPath];
+    this.#validateVector(vector);
+
+    // 预计算向量数据并压缩存储
+    const { magnitude, normalizedVector } = this.#precomputeVectorData(vector);
+    const optimizedObject = {
+      ...object,
+      [this.#vectorPath]: this.#compressVector(vector),
+      _magnitude: magnitude,
+      _normalizedVector: this.#compressVector(normalizedVector),
+    };
 
     const db = await this.#db;
     const storeName = this.#objectStore;
@@ -148,10 +363,11 @@ class VectorDB {
     const transaction = db.transaction([storeName], "readwrite");
     const store = transaction.objectStore(storeName);
 
-    const request = store.put(object, key);
+    const request = store.put(optimizedObject, key);
 
     return new Promise((resolve, reject) => {
       request.onsuccess = (event) => {
+        this.clearCache(); // 清理缓存
         resolve(event.target.result);
       };
 
@@ -161,12 +377,26 @@ class VectorDB {
     });
   }
 
-  // Return the most similar items up to [limit] items
-  async query(queryVector, options = { limit: 10 }) {
-    const { limit } = options;
+  /**
+   * 查询最相似的向量
+   * @param {number[]} queryVector - 查询向量
+   * @param {Object} options - 查询选项
+   * @returns {Promise<Array>} 相似度结果数组
+   */
+  async query(queryVector, options = { limit: 10, threshold: 0.0 }) {
+    this.#validateVector(queryVector);
+    const startTime = performance.now();
+    const { limit, threshold = 0.0 } = options;
+
+    // 检查缓存
+    const cacheKey = this.#generateCacheKey(queryVector, options);
+    if (this.#queryCache.has(cacheKey)) {
+      const cachedResult = this.#queryCache.get(cacheKey);
+      this.#updateQueryMetrics(performance.now() - startTime);
+      return cachedResult;
+    }
 
     const queryVectorLength = queryVector.length;
-
     const db = await this.#db;
     const storeName = this.#objectStore;
     const vectorPath = this.#vectorPath;
@@ -177,23 +407,27 @@ class VectorDB {
 
     const similarities = new SortedArray(limit, "similarity");
 
-    return new Promise((resolve, reject) => {
+    const result = await new Promise((resolve, reject) => {
+      const batch = [];
+
       request.onsuccess = (event) => {
         const cursor = event.target.result;
+
         if (cursor) {
-          const vectorValue = cursor.value[vectorPath];
-          if (vectorValue.length == queryVectorLength) {
-            // Only add the vector to the results set if the vector is the same length as query.
-            const similarity = cosineSimilarity(queryVector, vectorValue);
-            similarities.insert({
-              object: cursor.value,
-              key: cursor.key,
-              similarity,
-            });
+          batch.push({ key: cursor.key, value: cursor.value });
+
+          // 批量处理
+          if (batch.length >= this.#batchSize) {
+            this.#processBatch(batch, queryVector, similarities, threshold);
+            batch.length = 0;
           }
+
           cursor.continue();
         } else {
-          // sorted already.
+          // 处理剩余数据
+          if (batch.length > 0) {
+            this.#processBatch(batch, queryVector, similarities, threshold);
+          }
           resolve(similarities.slice(0, limit));
         }
       };
@@ -202,10 +436,71 @@ class VectorDB {
         reject(event.target.error);
       };
     });
+
+    // 缓存管理
+    if (this.#queryCache.size >= this.#cacheSize) {
+      const firstKey = this.#queryCache.keys().next().value;
+      this.#queryCache.delete(firstKey);
+    }
+    this.#queryCache.set(cacheKey, result);
+
+    // 更新性能指标
+    this.#updateQueryMetrics(performance.now() - startTime);
+
+    return result;
+  }
+
+  /**
+   * 清理查询缓存
+   */
+  clearCache() {
+    this.#queryCache.clear();
+  }
+
+  /**
+   * 获取性能指标
+   * @returns {Object} 性能指标对象
+   */
+  getMetrics() {
+    return { ...this.#metrics };
+  }
+
+  /**
+   * 重置性能指标
+   */
+  resetMetrics() {
+    this.#metrics = {
+      queryCount: 0,
+      avgQueryTime: 0,
+      totalQueryTime: 0,
+      insertCount: 0,
+    };
+  }
+
+  /**
+   * 获取数据库统计信息
+   * @returns {Promise<Object>} 统计信息
+   */
+  async getStats() {
+    const db = await this.#db;
+    const transaction = db.transaction([this.#objectStore], "readonly");
+    const store = transaction.objectStore(this.#objectStore);
+
+    return new Promise((resolve, reject) => {
+      const countRequest = store.count();
+      countRequest.onsuccess = () => {
+        resolve({
+          totalRecords: countRequest.result,
+          vectorDimension: this.#vectorDimension,
+          cacheSize: this.#queryCache.size,
+          metrics: this.getMetrics(),
+        });
+      };
+      countRequest.onerror = () => reject(countRequest.error);
+    });
   }
 
   get objectStore() {
-    // Escape hatch.
     return this.#objectStore;
   }
 }
