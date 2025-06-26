@@ -122,7 +122,7 @@ export function useAIApi() {
 
   const createEmbeddings = async (input) => {
     const model = "Qwen/Qwen3-Embedding-4B";
-    const token = "Bearer sk-";
+    const token = "Bearer sk-t";
     const options = {
       method: "POST",
       headers: {

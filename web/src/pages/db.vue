@@ -415,7 +415,9 @@ const queryEmbedding = async () => {
   const results = await db.query(embeddings, {
     limit: 3,
   })
-  console.log(results)
+  // 排序后的text数组
+  const texts = results.map(item => item.object.text)
+  console.log(texts)
 }
 
 // 生命周期

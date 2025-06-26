@@ -42,20 +42,28 @@ function cosineSimilarity(a, b) {
 /**
  * 创建IndexedDB数据库连接
  * @param {Object} options - 数据库配置选项
+ * @param {string} options.dbName - 数据库名称
+ * @param {string} options.objectStore - 对象存储名称
+ * @param {string} options.vectorPath - 向量路径
+ * @param {number} options.version - 数据库版本号
  * @returns {Promise<IDBDatabase>} 数据库实例
  */
 async function create(options) {
-  const { dbName, objectStore, vectorPath } = {
+  const { dbName, objectStore, vectorPath, version } = {
     ...DB_DEFAULTS,
     ...options,
   };
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(dbName, 1);
+    // 使用传入的版本号打开数据库
+    const request = indexedDB.open(dbName, version);
 
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
-      const store = db.createObjectStore(objectStore, { autoIncrement: true });
-      store.createIndex(vectorPath, vectorPath, { unique: false });
+      // 检查对象存储是否已存在
+      if (!db.objectStoreNames.contains(objectStore)) {
+        const store = db.createObjectStore(objectStore, { autoIncrement: true });
+        store.createIndex(vectorPath, vectorPath, { unique: false });
+      }
     };
 
     request.onsuccess = (event) => {
@@ -87,9 +95,13 @@ class VectorDB {
   /**
    * 构造函数
    * @param {Object} options - 配置选项
+   * @param {string} options.dbName - 数据库名称
+   * @param {string} options.objectStore - 对象存储名称
+   * @param {string} options.vectorPath - 向量路径
+   * @param {number} options.version - 数据库版本号
    */
   constructor(options) {
-    const { dbName, objectStore, vectorPath } = {
+    const { dbName, objectStore, vectorPath, version } = {
       ...DB_DEFAULTS,
       ...options,
     };

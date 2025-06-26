@@ -3,8 +3,10 @@
  * 提供响应式的数据库操作接口
  */
 
-import { ref, reactive, computed } from 'vue'
-import database from '@/utils/database'
+import { ref, computed, readonly } from 'vue'
+import database from '@/utils/database.js'
+import { VectorDB } from '@/utils/vector.js'
+import { useAIApi } from '@/api/model'
 
 export function useDatabase() {
   // 响应式状态
@@ -12,6 +14,9 @@ export function useDatabase() {
   const currentWorld = ref('')
   const loading = ref(false)
   const error = ref(null)
+  
+  // VectorDB实例
+  const vectorDB = ref(null)
   
   // 数据缓存
   const characters = ref([])
@@ -22,6 +27,59 @@ export function useDatabase() {
     apiUrl: '',
     model: ''
   })
+  
+  /**
+   * 加载所有数据到缓存
+   */
+  const loadAllData = async () => {
+    try {
+      loading.value = true
+      
+      const [charsData, groupsData, worldbooksData, configData] = await Promise.all([
+        database.getAllCharacters(),
+        database.getAllGroups(),
+        database.getAllWorldbooks(),
+        database.loadWorldConfig()
+      ])
+      
+      characters.value = charsData
+      groups.value = groupsData
+      worldbooks.value = worldbooksData
+      
+      // 调试配置加载
+      console.log('加载的配置数据:', configData)
+      config.value = { ...config.value, ...configData }
+      console.log('合并后的配置:', config.value)
+      
+    } catch (err) {
+      handleError(err, 'loadAllData')
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  // 初始化检查 - 添加调试信息
+  const dbInstance = database.getInstance()
+  const dbName = database.dbName
+  
+  console.log('数据库初始化检查:')
+  console.log('- database.getInstance():', dbInstance)
+  console.log('- database.dbName:', dbName)
+  console.log('- 检查结果:', !!(dbInstance && dbName))
+  
+  if (dbInstance && dbName) {
+    isConnected.value = true
+    currentWorld.value = dbName.replace(database.dbPrefix, '')
+    console.log('✅ 数据库连接状态设置为true, 当前世界:', currentWorld.value)
+    
+    // 异步加载数据，不阻塞返回
+    loadAllData().catch(err => {
+      console.warn('初始化时加载数据失败:', err)
+    })
+  } else {
+    console.log('❌ 数据库连接状态保持为false')
+    console.log('- 可能原因: database.getInstance()或database.dbName为空')
+  }
   
   // 计算属性
   const playerCharacter = computed(() => {
@@ -54,16 +112,35 @@ export function useDatabase() {
       loading.value = true
       clearError()
       
+      console.log('🔄 开始连接数据库:', worldName)
+      
       await database.initDB(worldName)
+      
+      // 重要：连接成功后立即更新状态
       currentWorld.value = worldName
       isConnected.value = true
+      
+      console.log('✅ 数据库连接成功，状态已更新:', {
+        isConnected: isConnected.value,
+        currentWorld: currentWorld.value,
+        dbInstance: !!database.getInstance(),
+        dbName: database.dbName
+      })
       
       // 加载所有数据
       await loadAllData()
       
+      // 初始化VectorDB实例
+      await initVectorDB()
+      
+      console.log('🎉 数据库完全初始化完成')
       return true
     } catch (err) {
+      console.error('❌ 数据库连接失败:', err)
       handleError(err, 'connectToWorld')
+      // 确保失败时重置状态
+      isConnected.value = false
+      currentWorld.value = ''
       return false
     } finally {
       loading.value = false
@@ -79,36 +156,6 @@ export function useDatabase() {
     } catch (err) {
       handleError(err, 'getAvailableWorlds')
       return []
-    }
-  }
-  
-  /**
-   * 加载所有数据到缓存
-   */
-  const loadAllData = async () => {
-    try {
-      loading.value = true
-      
-      const [charsData, groupsData, worldbooksData, configData] = await Promise.all([
-        database.getAllCharacters(),
-        database.getAllGroups(),
-        database.getAllWorldbooks(),
-        database.loadWorldConfig()
-      ])
-      
-      characters.value = charsData
-      groups.value = groupsData
-      worldbooks.value = worldbooksData
-      
-      // 调试配置加载
-      console.log('加载的配置数据:', configData)
-      config.value = { ...config.value, ...configData }
-      console.log('合并后的配置:', config.value)
-      
-    } catch (err) {
-      handleError(err, 'loadAllData')
-    } finally {
-      loading.value = false
     }
   }
   
@@ -396,13 +443,112 @@ export function useDatabase() {
   /**
    * 保存聊天消息
    * @param {Object} message - 消息对象
+   * @returns {Promise<Object|null>} 保存的消息对象
    */
   const saveMessage = async (message) => {
     try {
-      return await database.saveMessage(message)
+      const savedMessage = await database.saveMessage(message)
+      
+      // 自动向量化保存聊天记录（异步执行，不阻塞主流程）
+      if (savedMessage && savedMessage.content && savedMessage.content.trim()) {
+        saveMessageToVector(savedMessage).catch(error => {
+          console.warn('向量化保存失败:', error)
+        })
+      }
+      
+      return savedMessage
     } catch (err) {
       handleError(err, 'saveMessage')
       return null
+    }
+  }
+  
+  // VectorDB初始化状态锁
+  let isInitializingVectorDB = false
+  
+  /**
+   * 初始化VectorDB实例
+   * @returns {Promise<boolean>} 初始化是否成功
+   */
+  const initVectorDB = async () => {
+    // 防止重复初始化
+    if (isInitializingVectorDB) {
+      // 等待当前初始化完成
+      while (isInitializingVectorDB) {
+        await new Promise(resolve => setTimeout(resolve, 50))
+      }
+      return vectorDB.value !== null
+    }
+    
+    // 如果已经有有效实例，直接返回
+    if (vectorDB.value && isConnected.value) {
+      return true
+    }
+    
+    if (!isConnected.value || !database.dbName) {
+      vectorDB.value = null
+      return false
+    }
+    
+    isInitializingVectorDB = true
+    
+    try {
+      vectorDB.value = new VectorDB({
+        dbName: database.dbName,
+        objectStore: 'vector_plugin',
+        vectorPath: 'vector',
+        version: database.dbVersion
+      })
+      console.log('VectorDB初始化成功')
+      return true
+    } catch (error) {
+      console.error('VectorDB初始化失败:', error)
+      vectorDB.value = null
+      return false
+    } finally {
+      isInitializingVectorDB = false
+    }
+  }
+
+  /**
+   * 保存消息到向量数据库
+   * @param {Object} message - 消息对象
+   */
+  const saveMessageToVector = async (message) => {
+    try {
+      // 确保VectorDB实例存在
+      if (!vectorDB.value) {
+        const initialized = await initVectorDB()
+        if (!initialized) {
+          console.log('VectorDB未初始化，跳过向量化保存')
+          return
+        }
+      }
+      
+      // 使用AI API创建嵌入向量
+      const { createEmbeddings } = useAIApi()
+      
+      // 创建嵌入向量
+      const embedding = await createEmbeddings(message.content)
+      
+      // 准备向量化数据
+      const vectorData = {
+        messageId: message.id,
+        content: message.content,
+        characterName: message.characterName,
+        role: message.role,
+        timestamp: message.timestamp,
+        sessionId: message.sessionId,
+        vector: embedding
+      }
+      
+      // 保存到向量数据库
+      await vectorDB.value.insert(vectorData)
+      console.log('消息向量化保存成功:', message.id)
+      
+    } catch (error) {
+      console.warn('向量化保存失败:', error)
+      // 不抛出错误，避免影响主流程
     }
   }
   
@@ -474,6 +620,7 @@ export function useDatabase() {
     database.close()
     isConnected.value = false
     currentWorld.value = ''
+    vectorDB.value = null // 清理VectorDB实例
     characters.value = []
     groups.value = []
     worldbooks.value = []
@@ -489,22 +636,58 @@ export function useDatabase() {
     }
   }
   
+  /**
+   * 手动同步数据库连接状态
+   * 用于解决状态不一致问题
+   */
+  const syncConnectionState = () => {
+    const dbInstance = database.getInstance()
+    const dbName = database.dbName
+    
+    const shouldBeConnected = !!(dbInstance && dbName)
+    
+    if (shouldBeConnected !== isConnected.value) {
+      console.log('🔄 同步连接状态:', {
+        from: isConnected.value,
+        to: shouldBeConnected,
+        dbInstance: !!dbInstance,
+        dbName: dbName
+      })
+      
+      isConnected.value = shouldBeConnected
+      if (shouldBeConnected && dbName) {
+        currentWorld.value = dbName.replace(database.dbPrefix, '')
+      } else {
+        currentWorld.value = ''
+      }
+    }
+    
+    return isConnected.value
+  }
+
   return {
+    // 数据库实例
+    database,
     // 状态
     isConnected,
     currentWorld,
     loading,
     error,
-    
     // 数据
     characters,
     groups,
     worldbooks,
     config,
-    
     // 计算属性
     playerCharacter,
     availableCharacters,
+    
+    // VectorDB实例和方法
+    vectorDB: readonly(vectorDB),
+    initVectorDB,
+    
+    // 状态同步
+    syncConnectionState,
     
     // 数据库连接
     connectToWorld,

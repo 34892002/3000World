@@ -7,8 +7,16 @@ class Database {
   constructor() {
     this.db = null;
     this.dbName = null;
-    this.dbVersion = 3;
+    this.dbVersion = 4;
     this.dbPrefix = '3000World_';
+  }
+
+  /**
+   * 获取数据库实例
+   * @returns {IDBDatabase} 数据库实例
+   */
+  getInstance() {
+    return this.db;
   }
 
   /**
@@ -106,6 +114,14 @@ class Database {
         }
         const chatStore = db.createObjectStore('chat_history', { keyPath: 'id', autoIncrement: true });
         chatStore.createIndex('sessionId', 'sessionId', { unique: false });
+        
+        // 创建插件数据表
+        if (!db.objectStoreNames.contains('vector_plugin')) {
+          const vectorStore = db.createObjectStore('vector_plugin', { keyPath: 'id', autoIncrement: true });
+          vectorStore.createIndex('messageId', 'messageId', { unique: true });
+          vectorStore.createIndex('sessionId', 'sessionId', { unique: false });
+          console.log('Created vector_plugin table with indexes');
+        }
       };
       
       request.onsuccess = e => {

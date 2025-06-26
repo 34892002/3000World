@@ -8,7 +8,7 @@
       :worldbook="worldbook" :privateChats="privateChats" @select-chat="selectChat" :groupChats="groupChats"
       @open-settings="showSettings = true" @create-dialog="showCreateDialog"
       @select-worldbook-entry="selectWorldbookEntry" @toggle-player-character="togglePlayerCharacter" 
-      @open-api-config="openApiConfig" @edit-group="editGroup" @delete-group="deleteGroup"
+      @open-api-config="openApiConfig" @open-vector-plugin="openVectorPlugin" @edit-group="editGroup" @delete-group="deleteGroup"
       @open-character-editor="openCharacterEditor" @select-character="selectCharacter" @delete-character="deleteCharacter" />
 
     <!-- 主聊天区域 -->
@@ -35,6 +35,10 @@
     <ModelConfigDialog :visible="showApiConfig" :config="config" 
       @close="closeApiConfig" @save="saveApiConfig" />
 
+    <!-- 向量插件 -->
+    <VectorPlugin :visible="showVectorPlugin" :currentChat="currentChat" 
+      @close="closeVectorPlugin" />
+
   </div>
 </template>
 
@@ -52,6 +56,7 @@ import CharacterEditor from '@/components/CharacterEditor.vue'
 import SettingsDialog from '@/components/SettingsDialog.vue'
 import WorldbookEditor from '@/components/WorldbookEditor.vue'
 import ModelConfigDialog from '@/components/ModelConfigDialog.vue'
+import VectorPlugin from '@/components/VectorPlugin.vue'
 
 // 国际化和路由
 const { t, locale } = useI18n()
@@ -86,6 +91,7 @@ const { isLoading: aiLoading, cleanAIResponse, getAIResponse } = useAIApi()
 const sidebarOpen = ref(false)
 const showSettings = ref(false)
 const showApiConfig = ref(false)
+const showVectorPlugin = ref(false)
 const messagesContainer = ref(null)
 const isMobile = ref(false)
 const currentChat = ref({ userId: null, chatType: '' })
@@ -849,6 +855,20 @@ const openApiConfig = () => {
  */
 const closeApiConfig = () => {
   showApiConfig.value = false
+}
+
+/**
+ * 打开向量插件
+ */
+const openVectorPlugin = () => {
+  showVectorPlugin.value = true
+}
+
+/**
+ * 关闭向量插件
+ */
+const closeVectorPlugin = () => {
+  showVectorPlugin.value = false
 }
 
 /**
