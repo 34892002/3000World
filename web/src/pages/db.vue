@@ -232,7 +232,6 @@
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useDatabase } from '@/composables/useDatabase'
-import { VectorDB } from '@/utils/vector.js';
 import { useAIApi } from '@/api/model'
 
 const { isLoading: aiLoading, createEmbeddings } = useAIApi()
@@ -249,6 +248,10 @@ const {
   groups,
   worldbooks,
   config,
+
+  // VectorDB 实例
+  vectorDB,
+  initVectorDB,
 
   // 方法
   connectToWorld,
@@ -401,11 +404,18 @@ const handleFileImport = async (event) => {
 }
 
 const createEmbedding = async () => {
-  const db = new VectorDB({
-    vectorPath: "embedding",
-  });
+  // 确保 VectorDB 已初始化
+  if (!vectorDB.value) {
+    await initVectorDB()
+  }
+
+  if (!vectorDB.value) {
+    console.error('VectorDB 未初始化')
+    return
+  }
+
   const embeddings = await createEmbeddings(inputText.value)
-  const key1 = await db.insert({
+  const key1 = await vectorDB.value.insert({
     embedding: embeddings,
     text: inputText.value,
   });
@@ -414,11 +424,18 @@ const createEmbedding = async () => {
 }
 
 const queryEmbedding = async () => {
-  const db = new VectorDB({
-    vectorPath: "embedding",
-  });
+  // 确保 VectorDB 已初始化
+  if (!vectorDB.value) {
+    await initVectorDB()
+  }
+
+  if (!vectorDB.value) {
+    console.error('VectorDB 未初始化')
+    return
+  }
+
   const embeddings = await createEmbeddings(queryText.value)
-  const results = await db.query(embeddings, {
+  const results = await vectorDB.value.query(embeddings, {
     limit: 3,
   })
   // 排序后的text数组
