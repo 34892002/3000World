@@ -10,7 +10,6 @@
         <!-- 连接状态 -->
         <div class="status-section">
           <div class="status-item">
-            <span class="status-label">状态:</span>
             <span :class="['status-value', isConnected ? 'connected' : 'disconnected']">
               {{ isConnected ? t('plugins.vector.status.connected') : t('plugins.vector.status.disconnected') }}
             </span>
@@ -86,19 +85,6 @@
           </div>
         </div>
 
-        <!-- 操作日志 -->
-        <div v-if="logs.length > 0" class="logs-section">
-          <div class="logs-header">
-            <h4>操作日志</h4>
-            <button class="clear-logs-btn" @click="clearLogs">{{ t('plugins.vector.actions.clear') }}</button>
-          </div>
-          <div class="logs-container">
-            <div v-for="log in logs" :key="log.id" :class="['log-item', log.type]">
-              <span class="log-time">{{ formatTime(log.timestamp) }}</span>
-              <span class="log-message">{{ log.message }}</span>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -132,7 +118,6 @@ const loading = ref(false)
 const searchQuery = ref('')
 const searchResults = ref([])
 const searchPerformed = ref(false)
-const logs = ref([])
 const stats = ref({
   totalMessages: 0,
   vectorizedMessages: 0,
@@ -142,37 +127,48 @@ const stats = ref({
 // 监听数据库连接状态
 watch([isConnected], async () => {
   if (isConnected.value) {
-    addLog('success', '数据库连接成功，正在初始化向量搜索功能...')
     // 主动初始化VectorDB实例
     const initialized = await initVectorDB()
     if (initialized) {
-      addLog('success', '向量搜索功能已启用')
-    } else {
-      addLog('error', '向量搜索功能初始化失败')
+      // 更新统计信息
+      await updateStats()
     }
-  } else {
-    addLog('warning', '数据库连接断开，向量搜索功能不可用')
   }
 })
 
 
 
 /**
+ * 检查向量数据库状态
+ * @returns {Promise<boolean>} 是否可用
+ */
+const checkVectorDBStatus = async () => {
+  if (!isConnected.value) {
+    return false
+  }
+
+  if (!vectorDB.value) {
+    const initialized = await initVectorDB()
+    if (!initialized) {
+      return false
+    }
+
+    // 初始化后再次检查实例是否真的创建了
+    if (!vectorDB.value) {
+      return false
+    }
+  }
+
+  return true
+}
+
+/**
  * 向量化聊天记录
  */
 const vectorizeChatHistory = async () => {
-  if (!isConnected.value) {
-    addLog('error', '数据库未连接')
+  const isReady = await checkVectorDBStatus()
+  if (!isReady) {
     return
-  }
-  
-  if (!vectorDB.value) {
-    addLog('info', '正在初始化向量数据库...')
-    const initialized = await initVectorDB()
-    if (!initialized) {
-      addLog('error', '向量数据库初始化失败')
-      return
-    }
   }
 
   loading.value = true
@@ -185,13 +181,11 @@ const vectorizeChatHistory = async () => {
     for (const sessionId of sessions) {
       const messages = await getChatHistory(sessionId)
       
-      addLog('info', `开始向量化 ${messages.length} 条消息`)
-      
       for (const message of messages) {
         try {
           // 创建嵌入向量
           const embedding = await createEmbeddings(message.content)
-          
+
           // 使用VectorDB存储向量数据
           await vectorDB.value.insert({
             messageId: message.id.toString(),
@@ -202,21 +196,20 @@ const vectorizeChatHistory = async () => {
             timestamp: message.timestamp,
             vector: embedding
           })
-          
+
           processedCount++
         } catch (error) {
-          // 如果是重复数据错误，跳过；其他错误记录日志
+          // 如果是重复数据错误，跳过
           if (!error.message.includes('duplicate') && !error.message.includes('重复')) {
-            addLog('warning', `消息 ${message.id} 向量化失败: ${error.message}`)
+            console.warn(`消息 ${message.id} 向量化失败:`, error.message)
           }
         }
       }
     }
 
-    addLog('success', `向量化完成，处理了 ${processedCount} 条消息`)
     await updateStats()
   } catch (error) {
-    addLog('error', `向量化失败: ${error.message}`)
+    console.error('向量化失败:', error.message)
   } finally {
     loading.value = false
   }
@@ -229,37 +222,27 @@ const vectorizeChatHistory = async () => {
  */
 const performSearch = async () => {
   if (!searchQuery.value.trim()) {
-    addLog('warning', '请输入搜索关键词')
     return
   }
-  
-  if (!isConnected.value) {
-    addLog('error', '数据库未连接')
+
+  const isReady = await checkVectorDBStatus()
+  if (!isReady) {
     return
-  }
-  
-  if (!vectorDB.value) {
-    addLog('info', '正在初始化向量数据库...')
-    const initialized = await initVectorDB()
-    if (!initialized) {
-      addLog('error', '向量数据库初始化失败')
-      return
-    }
   }
 
   loading.value = true
   searchPerformed.value = true
-  
+
   try {
     // 创建查询向量
     const queryEmbedding = await createEmbeddings(searchQuery.value)
-    
+
     // 搜索相似内容
     const results = await vectorDB.value.query(queryEmbedding, {
       limit: 10,
       threshold: 0.3
     })
-    
+
     // 转换结果格式
     searchResults.value = results.map(result => ({
       id: result.object.messageId,
@@ -269,10 +252,8 @@ const performSearch = async () => {
       timestamp: result.object.timestamp,
       score: result.score
     }))
-    
-    addLog('success', `搜索完成，找到 ${results.length} 条相关记录`)
   } catch (error) {
-    addLog('error', `搜索失败: ${error.message}`)
+    console.error('搜索失败:', error.message)
   } finally {
     loading.value = false
   }
@@ -293,45 +274,27 @@ const getAllChatSessions = async () => {
  */
 const updateStats = async () => {
   if (!isConnected.value) return
-  
-  if (!vectorDB.value) {
-    const initialized = await initVectorDB()
-    if (!initialized) {
-      addLog('warning', '向量数据库未初始化，无法获取统计信息')
+
+  const isReady = await checkVectorDBStatus()
+  if (!isReady) {
+    return
+  }
+
+  try {
+    // 再次确认 vectorDB 实例存在
+    if (!vectorDB.value) {
       return
     }
-  }
-  
-  try {
+
     const statsData = await vectorDB.value.getStats()
-    
+
     stats.value = {
       totalMessages: statsData.totalRecords,
       vectorizedMessages: statsData.totalRecords,
       lastUpdate: new Date().toLocaleString()
     }
   } catch (error) {
-    console.error('Failed to update stats:', error)
-    addLog('error', `统计信息更新失败: ${error.message}`)
-  }
-}
-
-/**
- * 添加日志
- * @param {string} type - 日志类型
- * @param {string} message - 日志消息
- */
-const addLog = (type, message) => {
-  logs.value.unshift({
-    id: Date.now(),
-    type,
-    message,
-    timestamp: new Date()
-  })
-  
-  // 限制日志数量
-  if (logs.value.length > 50) {
-    logs.value = logs.value.slice(0, 50)
+    console.error('统计信息更新失败:', error.message)
   }
 }
 
@@ -347,13 +310,6 @@ const formatTime = (timestamp) => {
 }
 
 /**
- * 清空日志
- */
-const clearLogs = () => {
-  logs.value = []
-}
-
-/**
  * 关闭插件
  */
 const closePlugin = () => {
@@ -361,13 +317,15 @@ const closePlugin = () => {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+@use '@/styles/variables.scss' as *;
+@use 'sass:map';
+@use 'sass:color';
+
+// 模态框样式
 .vector-plugin-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
@@ -375,112 +333,127 @@ const closePlugin = () => {
   z-index: 1000;
 }
 
+// 插件主容器
 .vector-plugin-dialog {
   background: white;
-  border-radius: 12px;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
   width: 90%;
   max-width: 800px;
   max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
 }
 
+// 插件头部
 .plugin-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
   padding: 20px;
-  border-bottom: 1px solid #eee;
-}
+  border-bottom: 1px solid map.get(map.get($colors, light), border);
+  background: map.get(map.get($colors, light), bg-secondary);
 
-.plugin-header h3 {
-  margin: 0;
-  color: #333;
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    color: map.get(map.get($colors, light), text-primary);
+  }
 }
 
 .close-btn {
   background: none;
   border: none;
-  font-size: 20px;
+  font-size: 18px;
   cursor: pointer;
-  color: #666;
-  padding: 5px;
+  padding: 4px;
+  color: map.get(map.get($colors, light), text-muted);
+  border-radius: 4px;
+  transition: all $transition-base;
+
+  &:hover {
+    color: map.get(map.get($colors, light), text-primary);
+    @include button-hover();
+  }
 }
 
-.close-btn:hover {
-  color: #333;
-}
-
+// 插件内容区
 .plugin-content {
+  flex: 1;
+  overflow-y: auto;
   padding: 20px;
 }
 
+// 状态区域
 .status-section {
   margin-bottom: 24px;
   padding: 16px;
-  background: #f8f9fa;
-  border-radius: 8px;
+  background: map.get(map.get($colors, light), bg-secondary);
+  border-radius: $border-radius-md;
 }
 
 .status-item {
   display: flex;
   justify-content: space-between;
   margin-bottom: 8px;
-}
 
-.status-item:last-child {
-  margin-bottom: 0;
+  &:last-child {
+    margin-bottom: 0;
+  }
 }
 
 .status-label {
   font-weight: 500;
-  color: #666;
+  color: map.get(map.get($colors, light), text-secondary);
 }
 
 .status-value {
   font-weight: 600;
-}
 
-.status-value.connected {
-  color: #28a745;
-}
+  &.connected {
+    color: map.get($colors, success);
+  }
 
-.status-value.disconnected {
-  color: #dc3545;
+  &.disconnected {
+    color: map.get($colors, danger);
+  }
 }
 
 .reconnect-btn {
   margin-left: 12px;
   padding: 4px 12px;
-  background: #007bff;
+  background: map.get($colors, primary);
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: $border-radius-sm;
   cursor: pointer;
   font-size: 12px;
-  transition: all 0.2s;
+  transition: all $transition-base;
+
+  &:hover:not(:disabled) {
+    background: color.adjust(map.get($colors, primary), $lightness: -10%);
+  }
+
+  &:disabled {
+    background: map.get(map.get($colors, light), text-muted);
+    cursor: not-allowed;
+  }
 }
 
-.reconnect-btn:hover:not(:disabled) {
-  background: #0056b3;
-}
-
-.reconnect-btn:disabled {
-  background: #6c757d;
-  cursor: not-allowed;
-}
-
+// 向量化区域
 .vector-section {
   margin-bottom: 24px;
-}
 
-.vector-section h4 {
-  margin: 0 0 8px 0;
-  color: #333;
+  h4 {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: map.get(map.get($colors, light), text-primary);
+  }
 }
 
 .section-description {
-  color: #666;
+  color: map.get(map.get($colors, light), text-secondary);
   margin-bottom: 16px;
   line-height: 1.5;
 }
@@ -494,40 +467,41 @@ const closePlugin = () => {
 .action-btn {
   padding: 10px 20px;
   border: none;
-  border-radius: 6px;
+  border-radius: $border-radius-sm;
   cursor: pointer;
   font-weight: 500;
-  transition: all 0.2s;
+  transition: all $transition-base;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &.primary {
+    background: map.get($colors, primary);
+    color: white;
+
+    &:hover:not(:disabled) {
+      background: color.adjust(map.get($colors, primary), $lightness: -10%);
+    }
+  }
+
+  &.secondary {
+    background: map.get(map.get($colors, light), text-muted);
+    color: white;
+
+    &:hover:not(:disabled) {
+      background: color.adjust(map.get(map.get($colors, light), text-muted), $lightness: -10%);
+    }
+  }
 }
 
-.action-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.action-btn.primary {
-  background: #007bff;
-  color: white;
-}
-
-.action-btn.primary:hover:not(:disabled) {
-  background: #0056b3;
-}
-
-.action-btn.secondary {
-  background: #6c757d;
-  color: white;
-}
-
-.action-btn.secondary:hover:not(:disabled) {
-  background: #545b62;
-}
-
+// 搜索区域
 .search-section {
   margin-bottom: 24px;
   padding: 16px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
+  border: 1px solid map.get(map.get($colors, light), border);
+  border-radius: $border-radius-md;
 }
 
 .search-input-group {
@@ -539,27 +513,46 @@ const closePlugin = () => {
 .search-input {
   flex: 1;
   padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  border: 1px solid map.get(map.get($colors, light), border);
+  border-radius: $border-radius-sm;
+  background: white;
+  color: map.get(map.get($colors, light), text-primary);
   font-size: 14px;
+  transition: all $transition-base;
+  font-family: $font-family;
+
+  &:focus {
+    outline: none;
+    border-color: map.get($colors, primary);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  }
+
+  &::placeholder {
+    color: map.get(map.get($colors, light), text-muted);
+  }
 }
 
 .search-btn {
   padding: 8px 16px;
-  background: #28a745;
+  background: map.get($colors, success);
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: $border-radius-sm;
   cursor: pointer;
+  transition: all $transition-base;
+
+  &:hover:not(:disabled) {
+    background: color.adjust(map.get($colors, success), $lightness: -10%);
+  }
 }
 
-.search-btn:hover:not(:disabled) {
-  background: #218838;
-}
-
-.search-results h5 {
-  margin: 0 0 12px 0;
-  color: #333;
+.search-results {
+  h5 {
+    margin: 0 0 12px 0;
+    color: map.get(map.get($colors, light), text-primary);
+    font-size: 14px;
+    font-weight: 600;
+  }
 }
 
 .result-list {
@@ -569,9 +562,10 @@ const closePlugin = () => {
 
 .result-item {
   padding: 12px;
-  border: 1px solid #eee;
-  border-radius: 6px;
+  border: 1px solid map.get(map.get($colors, light), border);
+  border-radius: $border-radius-sm;
   margin-bottom: 8px;
+  background: white;
 }
 
 .result-meta {
@@ -579,21 +573,24 @@ const closePlugin = () => {
   gap: 12px;
   margin-bottom: 8px;
   font-size: 12px;
-  color: #666;
+  color: map.get(map.get($colors, light), text-muted);
 }
 
 .result-content {
-  color: #333;
+  color: map.get(map.get($colors, light), text-primary);
   line-height: 1.4;
 }
 
+// 统计区域
 .stats-section {
   margin-bottom: 24px;
-}
 
-.stats-section h4 {
-  margin: 0 0 12px 0;
-  color: #333;
+  h4 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: map.get(map.get($colors, light), text-primary);
+  }
 }
 
 .stats-grid {
@@ -606,93 +603,157 @@ const closePlugin = () => {
   display: flex;
   justify-content: space-between;
   padding: 12px;
-  background: #f8f9fa;
-  border-radius: 6px;
+  background: map.get(map.get($colors, light), bg-secondary);
+  border-radius: $border-radius-sm;
 }
 
 .stat-label {
-  color: #666;
+  color: map.get(map.get($colors, light), text-secondary);
 }
 
 .stat-value {
   font-weight: 600;
-  color: #333;
-}
-
-.logs-section {
-  margin-bottom: 24px;
-}
-
-.logs-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.logs-header h4 {
-  margin: 0;
-  color: #333;
-}
-
-.clear-logs-btn {
-  padding: 4px 8px;
-  background: #dc3545;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.clear-logs-btn:hover {
-  background: #c82333;
+  color: map.get(map.get($colors, light), text-primary);
 }
 
 .no-results {
   text-align: center;
-  color: #666;
+  color: map.get(map.get($colors, light), text-muted);
   padding: 20px;
   font-style: italic;
 }
 
-.logs-container {
-  max-height: 200px;
-  overflow-y: auto;
-  border: 1px solid #eee;
-  border-radius: 6px;
+// 响应式设计
+@include mobile {
+  .vector-plugin-dialog {
+    width: 95%;
+    max-height: 95vh;
+  }
+
+  .plugin-header,
+  .plugin-content {
+    padding: 16px;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+
+    .action-btn {
+      width: 100%;
+    }
+  }
+
+  .search-input-group {
+    flex-direction: column;
+
+    .search-btn {
+      width: 100%;
+    }
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
-.log-item {
-  display: flex;
-  gap: 12px;
-  padding: 8px 12px;
-  border-bottom: 1px solid #f0f0f0;
-  font-size: 13px;
-}
+// 深色主题样式
+:root.dark-theme {
+  .vector-plugin-dialog {
+    @include glass-effect(map.get(map.get($colors, dark), bg-primary));
+    border: 1px solid map.get(map.get($colors, dark), border);
+  }
 
-.log-item:last-child {
-  border-bottom: none;
-}
+  .plugin-header {
+    border-bottom: 1px solid map.get(map.get($colors, dark), border);
+    background: map.get(map.get($colors, dark), bg-secondary);
 
-.log-item.info {
-  background: #e7f3ff;
-}
+    h3 {
+      color: map.get(map.get($colors, dark), text-primary);
+    }
+  }
 
-.log-item.success {
-  background: #e8f5e8;
-}
+  .close-btn {
+    color: map.get(map.get($colors, dark), text-muted);
 
-.log-item.error {
-  background: #ffe6e6;
-}
+    &:hover {
+      color: map.get(map.get($colors, dark), text-primary);
+      background: rgba(71, 85, 105, 0.3);
+    }
+  }
 
-.log-time {
-  color: #666;
-  white-space: nowrap;
-}
+  .status-section {
+    background: map.get(map.get($colors, dark), bg-secondary);
+  }
 
-.log-message {
-  color: #333;
+  .status-label {
+    color: map.get(map.get($colors, dark), text-secondary);
+  }
+
+  .vector-section h4,
+  .stats-section h4 {
+    color: map.get(map.get($colors, dark), text-primary);
+  }
+
+  .section-description {
+    color: map.get(map.get($colors, dark), text-secondary);
+  }
+
+  .reconnect-btn {
+    &:disabled {
+      background: map.get(map.get($colors, dark), text-muted);
+    }
+  }
+
+  .search-section {
+    border: 1px solid map.get(map.get($colors, dark), border);
+  }
+
+  .search-input {
+    background: map.get(map.get($colors, dark), bg-secondary);
+    border: 1px solid map.get(map.get($colors, dark), border);
+    color: map.get(map.get($colors, dark), text-primary);
+
+    &::placeholder {
+      color: map.get(map.get($colors, dark), text-muted);
+    }
+
+    &:focus {
+      border-color: map.get($colors, primary);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+    }
+  }
+
+  .search-results h5 {
+    color: map.get(map.get($colors, dark), text-primary);
+  }
+
+  .result-item {
+    background: map.get(map.get($colors, dark), bg-secondary);
+    border: 1px solid map.get(map.get($colors, dark), border);
+  }
+
+  .result-meta {
+    color: map.get(map.get($colors, dark), text-muted);
+  }
+
+  .result-content {
+    color: map.get(map.get($colors, dark), text-primary);
+  }
+
+  .stat-item {
+    background: map.get(map.get($colors, dark), bg-secondary);
+  }
+
+  .stat-label {
+    color: map.get(map.get($colors, dark), text-secondary);
+  }
+
+  .stat-value {
+    color: map.get(map.get($colors, dark), text-primary);
+  }
+
+  .no-results {
+    color: map.get(map.get($colors, dark), text-muted);
+  }
 }
 </style>
