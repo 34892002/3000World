@@ -73,6 +73,7 @@ export function useDatabase() {
   if (!isInitialized) {
     isInitialized = true;
 
+    // 自动检测现有连接状态
     const dbInstance = database.getInstance();
     const dbName = database.dbName;
 
@@ -83,7 +84,10 @@ export function useDatabase() {
       currentWorld.value = dbName.replace(database.dbPrefix, "");
 
       // 异步加载数据，不阻塞返回
-      loadAllData();
+      loadAllData().catch(err => {
+        console.error("初始化时加载数据失败:", err);
+        handleError(err, "初始化数据加载");
+      });
     } else {
       // 确保状态一致性
       isConnected.value = false;
@@ -101,8 +105,10 @@ export function useDatabase() {
   });
 
   // 错误处理
-  const handleError = (err) => {
-    error.value = err.message || err;
+  const handleError = (err, context = "") => {
+    const errorMessage = err.message || err;
+    error.value = context ? `${context}: ${errorMessage}` : errorMessage;
+    console.error(`数据库操作错误${context ? ` (${context})` : ""}:`, err);
     return null;
   };
 
@@ -123,25 +129,25 @@ export function useDatabase() {
 
       await database.initDB(worldName);
 
-      // 重要：连接成功后立即更新状态
+      // 连接成功后立即更新全局状态
       currentWorld.value = worldName;
       isConnected.value = true;
 
       // 加载所有数据
       await loadAllData();
 
-      // 等待一小段时间确保数据库完全准备好
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      // 初始化VectorDB实例
-      await initVectorDB();
+      // 初始化VectorDB实例（异步，不阻塞主流程）
+      initVectorDB().catch(err => {
+        console.warn("VectorDB初始化失败:", err);
+      });
 
       return true;
     } catch (err) {
-      handleError(err);
+      handleError(err, "连接世界");
       // 确保失败时重置状态
       isConnected.value = false;
       currentWorld.value = "";
+      vectorDBInstance.value = null;
       return false;
     } finally {
       loading.value = false;
@@ -472,26 +478,22 @@ export function useDatabase() {
     }
   };
 
-  // VectorDB初始化状态锁
-  let isInitializingVectorDB = false;
+  // VectorDB初始化Promise缓存
+  let initVectorDBPromise = null;
 
   /**
    * 初始化VectorDB实例
    * @returns {Promise<boolean>} 初始化是否成功
    */
   const initVectorDB = async () => {
-    // 防止重复初始化
-    if (isInitializingVectorDB) {
-      // 等待当前初始化完成
-      while (isInitializingVectorDB) {
-        await new Promise((resolve) => setTimeout(resolve, 50));
-      }
-      return vectorDBInstance.value !== null;
-    }
-
     // 如果已经有有效实例，直接返回
     if (vectorDBInstance.value && isConnected.value) {
       return true;
+    }
+
+    // 如果正在初始化，返回缓存的Promise
+    if (initVectorDBPromise) {
+      return await initVectorDBPromise;
     }
 
     if (!isConnected.value || !database.dbName) {
@@ -499,34 +501,38 @@ export function useDatabase() {
       return false;
     }
 
-    isInitializingVectorDB = true;
+    // 创建并缓存初始化Promise
+    initVectorDBPromise = (async () => {
+      try {
+        // 检查数据库实例
+        const dbInstance = database.getInstance();
+        if (!dbInstance) {
+          throw new Error("数据库实例获取失败");
+        }
 
-    try {
-      // 检查数据库实例
-      const dbInstance = database.getInstance();
-      if (!dbInstance) {
-        throw new Error("数据库实例获取失败");
-      }
+        // 检查对象存储是否存在
+        if (!dbInstance.objectStoreNames.contains("vector_plugin")) {
+          return false;
+        }
 
-      // 检查对象存储是否存在
-      if (!dbInstance.objectStoreNames.contains("vector_plugin")) {
+        // 直接创建VectorDB实例，使用现有数据库连接
+        vectorDBInstance.value = new VectorDB({
+          objectStore: "vector_plugin",
+          vectorPath: "vector",
+          existingDB: dbInstance, // 复用现有数据库实例
+        });
+
+        return true;
+      } catch (error) {
+        vectorDBInstance.value = null;
         return false;
+      } finally {
+        // 清理Promise缓存，允许下次重新初始化
+        initVectorDBPromise = null;
       }
+    })();
 
-      // 直接创建VectorDB实例，使用现有数据库连接
-      vectorDBInstance.value = new VectorDB({
-        objectStore: "vector_plugin",
-        vectorPath: "vector",
-        existingDB: dbInstance, // 复用现有数据库实例
-      });
-
-      return true;
-    } catch (error) {
-      vectorDBInstance.value = null;
-      return false;
-    } finally {
-      isInitializingVectorDB = false;
-    }
+    return await initVectorDBPromise;
   };
 
   /**
@@ -652,32 +658,6 @@ export function useDatabase() {
     }
   };
 
-  /**
-   * 手动同步数据库连接状态
-   * 用于解决状态不一致问题
-   */
-  const syncConnectionState = () => {
-    const dbInstance = database.getInstance();
-    const dbName = database.dbName;
-
-    // 检查数据库实例是否有效（未关闭）
-    const isDbValid = dbInstance && dbInstance.objectStoreNames !== undefined;
-    const shouldBeConnected = !!(isDbValid && dbName);
-
-    if (shouldBeConnected !== isConnected.value) {
-      console.log(`同步连接状态: ${isConnected.value} -> ${shouldBeConnected}`);
-
-      isConnected.value = shouldBeConnected;
-      if (shouldBeConnected && dbName) {
-        currentWorld.value = dbName.replace(database.dbPrefix, "");
-      } else {
-        currentWorld.value = "";
-      }
-    }
-
-    return isConnected.value;
-  };
-
   return {
     // 数据库实例
     database,
@@ -699,10 +679,6 @@ export function useDatabase() {
     // VectorDB实例和方法
     vectorDB: vectorDBInstance,
     initVectorDB,
-
-    // 状态同步
-    syncConnectionState,
-
     // 数据库连接
     connectToWorld,
     getAvailableWorlds,
