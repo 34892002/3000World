@@ -558,6 +558,7 @@ class Database {
     if (this.db) {
       this.db.close();
       this.db = null;
+      this.dbName = null; // 重要：清理数据库名称，确保状态一致性
     }
   }
 }

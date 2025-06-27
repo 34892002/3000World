@@ -67,6 +67,11 @@
           :disabled="!isConnected || loading">
           刷新数据
         </button>
+
+        <button @click="syncConnectionState" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          :disabled="loading">
+          同步状态
+        </button>
       </div>
     </div>
 
@@ -250,6 +255,7 @@ const {
   getAvailableWorlds,
   disconnect,
   refresh,
+  syncConnectionState,
   saveCharacter,
   deleteCharacter,
   saveGroup,

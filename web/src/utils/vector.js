@@ -46,13 +46,20 @@ function cosineSimilarity(a, b) {
  * @param {string} options.objectStore - 对象存储名称
  * @param {string} options.vectorPath - 向量路径
  * @param {number} options.version - 数据库版本号
+ * @param {IDBDatabase} options.existingDB - 现有的数据库连接（可选）
  * @returns {Promise<IDBDatabase>} 数据库实例
  */
 async function create(options) {
-  const { dbName, objectStore, vectorPath, version } = {
+  const { dbName, objectStore, vectorPath, version, existingDB } = {
     ...DB_DEFAULTS,
     ...options,
   };
+
+  // 如果提供了现有的数据库连接，直接使用
+  if (existingDB) {
+    return Promise.resolve(existingDB);
+  }
+
   return new Promise((resolve, reject) => {
     // 使用传入的版本号打开数据库
     const request = indexedDB.open(dbName, version);
@@ -99,15 +106,16 @@ class VectorDB {
    * @param {string} options.objectStore - 对象存储名称
    * @param {string} options.vectorPath - 向量路径
    * @param {number} options.version - 数据库版本号
+   * @param {IDBDatabase} options.existingDB - 现有的数据库连接（可选）
    */
   constructor(options) {
-    const { dbName, objectStore, vectorPath, version } = {
+    const { dbName, objectStore, vectorPath, existingDB } = {
       ...DB_DEFAULTS,
       ...options,
     };
 
-    if (!dbName) {
-      throw new Error("dbName is required");
+    if (!dbName && !existingDB) {
+      throw new Error("dbName or existingDB is required");
     }
 
     if (!objectStore) {
