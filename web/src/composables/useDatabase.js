@@ -546,6 +546,8 @@ export function useDatabase() {
    */
   const saveMessageToVector = async (message) => {
     try {
+      const vectorConfig = await getPluginConfig('vector');
+      if (!vectorConfig?.enabled) return;
       // 确保VectorDB实例存在
       if (!vectorDBInstance.value) {
         const initialized = await initVectorDB();

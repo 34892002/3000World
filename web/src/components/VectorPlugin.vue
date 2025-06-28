@@ -12,12 +12,20 @@
           <h4>插件配置</h4>
           <div class="config-form">
             <div class="form-group">
+              <label class="switch-label">
+                <input type="checkbox" v-model="vectorConfig.enabled" @change="saveVectorConfig" />
+                <span class="switch"></span>
+                启用向量化保存
+              </label>
+            </div>
+            <div class="form-group">
               <label>API密钥:</label>
               <input 
                 v-model="vectorConfig.apiKey" 
                 type="password" 
                 placeholder="请输入API密钥"
                 class="config-input"
+                :disabled="!vectorConfig.enabled"
                 @blur="saveVectorConfig"
               />
             </div>
@@ -28,6 +36,7 @@
                 type="text" 
                 placeholder="API地址"
                 class="config-input"
+                :disabled="!vectorConfig.enabled"
                 @blur="saveVectorConfig"
               />
             </div>
@@ -38,6 +47,7 @@
                 type="text" 
                 placeholder="模型名称"
                 class="config-input"
+                :disabled="!vectorConfig.enabled"
                 @blur="saveVectorConfig"
               />
             </div>
@@ -53,7 +63,7 @@
               class="search-input"
               @keyup.enter="performSearch"
             />
-            <button class="search-btn" @click="performSearch" :disabled="!searchQuery.trim() || !isConnected || !vectorConfig.apiKey">
+            <button class="search-btn" @click="performSearch" :disabled="!searchQuery.trim() || !isConnected || !vectorConfig.apiKey || !vectorConfig.enabled">
               {{ t('plugins.vector.actions.search') }}
             </button>
           </div>
@@ -123,7 +133,7 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const { t } = useI18n()
-const { database, isConnected, getChatHistory, config, vectorDB, initVectorDB, getPluginConfig, savePluginConfig } = useDatabase()
+const { isConnected, vectorDB, initVectorDB, getPluginConfig, savePluginConfig } = useDatabase()
 const { createEmbeddings } = useAIApi()
 
 // 响应式数据
@@ -139,6 +149,7 @@ const stats = ref({
 
 // 向量插件配置
 const vectorConfig = ref({
+  enabled: false,
   apiKey: '',
   apiUrl: 'https://api.siliconflow.cn/v1/embeddings',
   model: 'Qwen/Qwen3-Embedding-4B'
@@ -155,6 +166,7 @@ const loadVectorConfig = async () => {
         ...vectorConfig.value,
         ...config
       }
+    } else {
     }
   } catch (error) {
     console.error('加载向量插件配置失败:', error)
@@ -166,18 +178,23 @@ const loadVectorConfig = async () => {
  */
 const saveVectorConfig = async () => {
   try {
-    await savePluginConfig('vector', vectorConfig.value)
+    const result = await savePluginConfig('vector', vectorConfig.value)
   } catch (error) {
     console.error('保存向量插件配置失败:', error)
   }
 }
 
 // 组件挂载时加载配置
-onMounted(async () => {})
+onMounted(async () => {
+  if (isConnected.value) {
+    await loadVectorConfig()
+  }
+})
 
 // 监听数据库连接状态
 watch([isConnected], async () => {
   if (isConnected.value) {
+    console.log('数据库已连接，开始加载向量插件配置')
     // 加载向量插件配置
     await loadVectorConfig()
     // 主动初始化VectorDB实例
@@ -187,7 +204,7 @@ watch([isConnected], async () => {
       await updateStats()
     }
   }
-})
+}, { immediate: true })
 
 
 /**
@@ -195,7 +212,7 @@ watch([isConnected], async () => {
  * @returns {Promise<boolean>} 是否可用
  */
 const checkVectorDBStatus = async () => {
-  if (!isConnected.value) {
+  if (!isConnected.value || !vectorConfig.value.enabled) {
     return false
   }
 
@@ -219,7 +236,7 @@ const checkVectorDBStatus = async () => {
  * 执行搜索
  */
 const performSearch = async () => {
-  if (!searchQuery.value.trim()) {
+  if (!searchQuery.value.trim() || !vectorConfig.value.enabled) {
     return
   }
 
@@ -271,7 +288,7 @@ const getAllChatSessions = async () => {
  * 更新统计信息
  */
 const updateStats = async () => {
-  if (!isConnected.value) return
+  if (!isConnected.value || !vectorConfig.value.enabled) return
 
   const isReady = await checkVectorDBStatus()
   if (!isReady) {
@@ -492,6 +509,54 @@ const closePlugin = () => {
 
   &::placeholder {
     color: map.get(map.get($colors, light), text-muted);
+  }
+
+  &:disabled {
+    background: map.get(map.get($colors, light), bg-secondary);
+    color: map.get(map.get($colors, light), text-muted);
+    cursor: not-allowed;
+  }
+}
+
+// Switch 组件样式
+.switch-label {
+  display: flex !important;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  
+  input[type="checkbox"] {
+    display: none;
+  }
+}
+
+.switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background: #d1d5db;
+  border-radius: 12px;
+  transition: background-color 0.2s;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+}
+
+input[type="checkbox"]:checked + .switch {
+  background: map.get($colors, primary);
+  
+  &::after {
+    transform: translateX(20px);
   }
 }
 
@@ -763,6 +828,12 @@ const closePlugin = () => {
       border-color: map.get($colors, primary);
       box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
     }
+
+    &:disabled {
+      background: map.get(map.get($colors, dark), bg-primary);
+      color: map.get(map.get($colors, dark), text-muted);
+      cursor: not-allowed;
+    }
   }
 
   .section-description {
@@ -791,6 +862,12 @@ const closePlugin = () => {
     &:focus {
       border-color: map.get($colors, primary);
       box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+    }
+
+    &:disabled {
+      background: map.get(map.get($colors, dark), bg-primary);
+      color: map.get(map.get($colors, dark), text-muted);
+      cursor: not-allowed;
     }
   }
 
@@ -825,6 +902,14 @@ const closePlugin = () => {
 
   .no-results {
     color: map.get(map.get($colors, dark), text-muted);
+  }
+
+  .switch {
+    background: #475569;
+  }
+
+  input[type="checkbox"]:checked + .switch {
+    background: #667eea;
   }
 }
 </style>
