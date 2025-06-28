@@ -7,15 +7,6 @@
       </div>
       
       <div class="plugin-content">
-        <!-- 连接状态 -->
-        <div class="status-section">
-          <div class="status-item">
-            <span :class="['status-value', isConnected ? 'connected' : 'disconnected']">
-              {{ isConnected ? t('plugins.vector.status.connected') : t('plugins.vector.status.disconnected') }}
-            </span>
-          </div>
-        </div>
-
         <!-- 配置区域 -->
         <div class="config-section">
           <h4>插件配置</h4>
@@ -53,22 +44,6 @@
           </div>
         </div>
 
-        <!-- 向量化操作 -->
-        <div class="vector-section">
-          <h4>{{ t('plugins.vector.description') }}</h4>
-          
-          <div class="action-buttons">
-            <button 
-              class="action-btn primary" 
-              @click="vectorizeChatHistory" 
-              :disabled="loading || !isConnected || !vectorConfig.apiKey"
-            >
-              <span v-if="loading">处理中...</span>
-              <span v-else>{{ t('plugins.vector.actions.vectorize') }}</span>
-            </button>
-          </div>
-        </div>
-
         <!-- 搜索区域 -->
         <div class="search-section">
           <div class="search-input-group">
@@ -91,7 +66,7 @@
                 <div class="result-meta">
                   <span class="result-character">{{ result.characterName || '用户' }}</span>
                   <span class="result-time">{{ formatTime(result.timestamp) }}</span>
-                  <span class="result-score">相似度: {{ (result.score * 100).toFixed(1) }}%</span>
+                  <span class="result-score">相似度: {{ (result.similarity * 100).toFixed(1) }}%</span>
                 </div>
                 <div class="result-content">{{ result.content }}</div>
               </div>
@@ -100,30 +75,30 @@
           
           <div v-else-if="searchPerformed && searchResults.length === 0" class="no-results">
             {{ t('plugins.vector.messages.noResults') }}
-            console.log("🚀 ~ file: VectorPlugin.vue:103 ~ messages:", messages)
           </div>
         </div>
-
-        <!-- 统计信息 -->
-        <div class="stats-section">
-          <h4>统计信息</h4>
-          <div class="stats-grid">
-            <div class="stat-item">
-              <span class="stat-label">{{ t('plugins.vector.stats.totalMessages') }}</span>
-              <span class="stat-value">{{ stats?.totalMessages || 0 }}</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-label">{{ t('plugins.vector.stats.vectorizedMessages') }}</span>
-              <span class="stat-value">{{ stats?.vectorizedMessages || 0 }}</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-label">最后更新</span>
-              <span class="stat-value">{{ stats?.lastUpdate || '从未' }}</span>
-            </div>
-          </div>
-        </div>
-
       </div>
+
+      <!-- 统计信息 -->
+      <div class="stats-section pa-5">
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span :class="['status-value', isConnected ? 'connected' : 'disconnected']">
+              {{ isConnected ? t('plugins.vector.status.connected') : t('plugins.vector.status.disconnected') }}
+            </span>
+            <!-- <span class="stat-value">{{ stats?.totalMessages || 0 }}</span> -->
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">{{ t('plugins.vector.stats.vectorizedMessages') }}</span>
+            <span class="stat-value">{{ stats?.vectorizedMessages || 0 }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">最后更新</span>
+            <span class="stat-value">{{ stats?.lastUpdate || '从未' }}</span>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </template>
@@ -239,63 +214,6 @@ const checkVectorDBStatus = async () => {
   return true
 }
 
-/**
- * 向量化聊天记录
- */
-const vectorizeChatHistory = async () => {
-  const isReady = await checkVectorDBStatus()
-  console.log("🚀 ~ file: VectorPlugin.vue:247 ~ isReady:", isReady)
-  if (!isReady) {
-    return
-  }
-
-  loading.value = true
-
-  try {
-    // 获取所有聊天会话
-    const sessions = await getAllChatSessions()
-    console.log("🚀 ~ file: VectorPlugin.vue:257 ~ sessions:", sessions)
-    let processedCount = 0
-
-    for (const sessionId of sessions) {
-      const messages = await getChatHistory(sessionId)
-      console.log("🚀 ~ file: VectorPlugin.vue:259 ~ messages:", messages)
-      
-      for (const message of messages) {
-        try {
-          // 创建嵌入向量
-          const embedding = await createEmbeddings(message.content)
-
-          // 使用VectorDB存储向量数据
-          await vectorDB.value.insert({
-            messageId: message.id.toString(),
-            sessionId: message.sessionId,
-            characterName: message.characterName,
-            role: message.role,
-            content: message.content,
-            timestamp: message.timestamp,
-            vector: embedding
-          })
-
-          processedCount++
-        } catch (error) {
-          // 如果是重复数据错误，跳过
-          if (!error.message.includes('duplicate') && !error.message.includes('重复')) {
-            console.warn(`消息 ${message.id} 向量化失败:`, error.message)
-          }
-        }
-      }
-    }
-
-    await updateStats()
-  } catch (error) {
-    console.error('向量化失败:', error.message)
-  } finally {
-    loading.value = false
-  }
-}
-
-
 
 /**
  * 执行搜索
@@ -330,7 +248,7 @@ const performSearch = async () => {
       characterName: result.object.characterName,
       role: result.object.role,
       timestamp: result.object.timestamp,
-      score: result.score
+      similarity: result.similarity
     }))
   } catch (error) {
     console.error('搜索失败:', error.message)
@@ -720,14 +638,7 @@ const closePlugin = () => {
 
 // 统计区域
 .stats-section {
-  margin-bottom: 24px;
-
-  h4 {
-    margin: 0 0 12px 0;
-    font-size: 16px;
-    font-weight: 600;
-    color: map.get(map.get($colors, light), text-primary);
-  }
+  border-top: 1px solid map.get(map.get($colors, light), border);
 }
 
 .stats-grid {
@@ -739,9 +650,7 @@ const closePlugin = () => {
 .stat-item {
   display: flex;
   justify-content: space-between;
-  padding: 12px;
   background: map.get(map.get($colors, light), bg-secondary);
-  border-radius: $border-radius-sm;
 }
 
 .stat-label {
