@@ -23,6 +23,7 @@ const globalState = {
     apiUrl: "",
     model: "",
   }),
+  pluginConfigs: ref({}),
 };
 
 // 初始化标志，确保只初始化一次
@@ -40,6 +41,7 @@ export function useDatabase() {
     groups,
     worldbooks,
     config,
+    pluginConfigs,
   } = globalState;
 
   /**
@@ -49,17 +51,19 @@ export function useDatabase() {
     try {
       loading.value = true;
 
-      const [charsData, groupsData, worldbooksData, configData] =
+      const [charsData, groupsData, worldbooksData, configData, pluginConfigsData] =
         await Promise.all([
           database.getAllCharacters(),
           database.getAllGroups(),
           database.getAllWorldbooks(),
           database.loadWorldConfig(),
+          database.getAllPluginConfigs(),
         ]);
 
       characters.value = charsData;
       groups.value = groupsData;
       worldbooks.value = worldbooksData;
+      pluginConfigs.value = pluginConfigsData;
 
       config.value = { ...config.value, ...configData };
     } catch (err) {
@@ -467,6 +471,7 @@ export function useDatabase() {
       // 自动向量化保存聊天记录（异步执行，不阻塞主流程）
       if (savedMessage && savedMessage.content && savedMessage.content.trim()) {
         saveMessageToVector(savedMessage).catch(() => {
+          console.error("向量化保存聊天记录失败:", err);
           // 向量化保存失败，静默处理
         });
       }
@@ -633,6 +638,82 @@ export function useDatabase() {
     }
   };
 
+  // ==================== 插件配置管理 ====================
+
+  /**
+   * 保存插件配置
+   * @param {string} key - 插件配置键名
+   * @param {Object} config - 插件配置对象
+   */
+  const savePluginConfig = async (key, config) => {
+    try {
+      loading.value = true;
+      clearError();
+
+      await database.savePluginConfig(key, config);
+      
+      // 更新本地缓存
+      pluginConfigs.value[key] = config;
+
+      return true;
+    } catch (err) {
+      handleError(err, "savePluginConfig");
+      return false;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  /**
+   * 获取插件配置
+   * @param {string} key - 插件配置键名
+   * @returns {Object|null}
+   */
+  const getPluginConfig = async (key) => {
+    try {
+      clearError();
+
+      // 先从缓存中获取
+      if (pluginConfigs.value[key]) {
+        return pluginConfigs.value[key];
+      }
+
+      // 从数据库获取
+      const config = await database.getPluginConfig(key);
+      if (config) {
+        pluginConfigs.value[key] = config;
+      }
+      
+      return config;
+    } catch (err) {
+      handleError(err, "getPluginConfig");
+      return null;
+    }
+  };
+
+  /**
+   * 删除插件配置
+   * @param {string} key - 插件配置键名
+   */
+  const deletePluginConfig = async (key) => {
+    try {
+      loading.value = true;
+      clearError();
+
+      await database.deletePluginConfig(key);
+      
+      // 从本地缓存中删除
+      delete pluginConfigs.value[key];
+
+      return true;
+    } catch (err) {
+      handleError(err, "deletePluginConfig");
+      return false;
+    } finally {
+      loading.value = false;
+    }
+  };
+
   // ==================== 工具方法 ====================
 
   /**
@@ -671,6 +752,7 @@ export function useDatabase() {
     groups,
     worldbooks,
     config,
+    pluginConfigs,
     // 计算属性
     playerCharacter,
     availableCharacters,
@@ -703,6 +785,11 @@ export function useDatabase() {
 
     // 配置管理
     saveConfig,
+
+    // 插件配置管理
+    savePluginConfig,
+    getPluginConfig,
+    deletePluginConfig,
 
     // 聊天历史
     getChatHistory,

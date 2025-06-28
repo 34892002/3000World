@@ -16,6 +16,43 @@
           </div>
         </div>
 
+        <!-- 配置区域 -->
+        <div class="config-section">
+          <h4>插件配置</h4>
+          <div class="config-form">
+            <div class="form-group">
+              <label>API密钥:</label>
+              <input 
+                v-model="vectorConfig.apiKey" 
+                type="password" 
+                placeholder="请输入API密钥"
+                class="config-input"
+                @blur="saveVectorConfig"
+              />
+            </div>
+            <div class="form-group">
+              <label>API地址:</label>
+              <input 
+                v-model="vectorConfig.apiUrl" 
+                type="text" 
+                placeholder="API地址"
+                class="config-input"
+                @blur="saveVectorConfig"
+              />
+            </div>
+            <div class="form-group">
+              <label>模型名称:</label>
+              <input 
+                v-model="vectorConfig.model" 
+                type="text" 
+                placeholder="模型名称"
+                class="config-input"
+                @blur="saveVectorConfig"
+              />
+            </div>
+          </div>
+        </div>
+
         <!-- 向量化操作 -->
         <div class="vector-section">
           <h4>{{ t('plugins.vector.description') }}</h4>
@@ -24,7 +61,7 @@
             <button 
               class="action-btn primary" 
               @click="vectorizeChatHistory" 
-              :disabled="loading || !isConnected"
+              :disabled="loading || !isConnected || !vectorConfig.apiKey"
             >
               <span v-if="loading">处理中...</span>
               <span v-else>{{ t('plugins.vector.actions.vectorize') }}</span>
@@ -41,7 +78,7 @@
               class="search-input"
               @keyup.enter="performSearch"
             />
-            <button class="search-btn" @click="performSearch" :disabled="!searchQuery.trim() || !isConnected">
+            <button class="search-btn" @click="performSearch" :disabled="!searchQuery.trim() || !isConnected || !vectorConfig.apiKey">
               {{ t('plugins.vector.actions.search') }}
             </button>
           </div>
@@ -63,6 +100,7 @@
           
           <div v-else-if="searchPerformed && searchResults.length === 0" class="no-results">
             {{ t('plugins.vector.messages.noResults') }}
+            console.log("🚀 ~ file: VectorPlugin.vue:103 ~ messages:", messages)
           </div>
         </div>
 
@@ -91,7 +129,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useDatabase } from '@/composables/useDatabase.js'
 import { useAIApi } from '@/api/model'
@@ -110,7 +148,7 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const { t } = useI18n()
-const { database, isConnected, getChatHistory, config, vectorDB, initVectorDB } = useDatabase()
+const { database, isConnected, getChatHistory, config, vectorDB, initVectorDB, getPluginConfig, savePluginConfig } = useDatabase()
 const { createEmbeddings } = useAIApi()
 
 // 响应式数据
@@ -124,9 +162,49 @@ const stats = ref({
   lastUpdate: null
 })
 
+// 向量插件配置
+const vectorConfig = ref({
+  apiKey: '',
+  apiUrl: 'https://api.siliconflow.cn/v1/embeddings',
+  model: 'Qwen/Qwen3-Embedding-4B'
+})
+
+/**
+ * 加载向量插件配置
+ */
+const loadVectorConfig = async () => {
+  try {
+    const config = await getPluginConfig('vector')
+    if (config) {
+      vectorConfig.value = {
+        ...vectorConfig.value,
+        ...config
+      }
+    }
+  } catch (error) {
+    console.error('加载向量插件配置失败:', error)
+  }
+}
+
+/**
+ * 保存向量插件配置
+ */
+const saveVectorConfig = async () => {
+  try {
+    await savePluginConfig('vector', vectorConfig.value)
+  } catch (error) {
+    console.error('保存向量插件配置失败:', error)
+  }
+}
+
+// 组件挂载时加载配置
+onMounted(async () => {})
+
 // 监听数据库连接状态
 watch([isConnected], async () => {
   if (isConnected.value) {
+    // 加载向量插件配置
+    await loadVectorConfig()
     // 主动初始化VectorDB实例
     const initialized = await initVectorDB()
     if (initialized) {
@@ -135,7 +213,6 @@ watch([isConnected], async () => {
     }
   }
 })
-
 
 
 /**
@@ -167,6 +244,7 @@ const checkVectorDBStatus = async () => {
  */
 const vectorizeChatHistory = async () => {
   const isReady = await checkVectorDBStatus()
+  console.log("🚀 ~ file: VectorPlugin.vue:247 ~ isReady:", isReady)
   if (!isReady) {
     return
   }
@@ -176,10 +254,12 @@ const vectorizeChatHistory = async () => {
   try {
     // 获取所有聊天会话
     const sessions = await getAllChatSessions()
+    console.log("🚀 ~ file: VectorPlugin.vue:257 ~ sessions:", sessions)
     let processedCount = 0
 
     for (const sessionId of sessions) {
       const messages = await getChatHistory(sessionId)
+      console.log("🚀 ~ file: VectorPlugin.vue:259 ~ messages:", messages)
       
       for (const message of messages) {
         try {
@@ -382,6 +462,8 @@ const closePlugin = () => {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
+  height: 550px;
+  overflow-y: auto;
 }
 
 // 状态区域
@@ -437,6 +519,61 @@ const closePlugin = () => {
   &:disabled {
     background: map.get(map.get($colors, light), text-muted);
     cursor: not-allowed;
+  }
+}
+
+// 配置区域
+.config-section {
+  margin-bottom: 24px;
+  padding: 16px;
+  border: 1px solid map.get(map.get($colors, light), border);
+  border-radius: $border-radius-md;
+  background: map.get(map.get($colors, light), bg-secondary);
+
+  h4 {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: map.get(map.get($colors, light), text-primary);
+  }
+}
+
+.config-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  label {
+    font-size: 14px;
+    font-weight: 500;
+    color: map.get(map.get($colors, light), text-secondary);
+  }
+}
+
+.config-input {
+  padding: 8px 12px;
+  border: 1px solid map.get(map.get($colors, light), border);
+  border-radius: $border-radius-sm;
+  background: white;
+  color: map.get(map.get($colors, light), text-primary);
+  font-size: 14px;
+  transition: all $transition-base;
+  font-family: $font-family;
+
+  &:focus {
+    outline: none;
+    border-color: map.get($colors, primary);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  }
+
+  &::placeholder {
+    color: map.get(map.get($colors, light), text-muted);
   }
 }
 
@@ -690,8 +827,33 @@ const closePlugin = () => {
   }
 
   .vector-section h4,
-  .stats-section h4 {
+  .stats-section h4,
+  .config-section h4 {
     color: map.get(map.get($colors, dark), text-primary);
+  }
+
+  .config-section {
+    background: map.get(map.get($colors, dark), bg-secondary);
+    border: 1px solid map.get(map.get($colors, dark), border);
+  }
+
+  .form-group label {
+    color: map.get(map.get($colors, dark), text-secondary);
+  }
+
+  .config-input {
+    background: map.get(map.get($colors, dark), bg-secondary);
+    border: 1px solid map.get(map.get($colors, dark), border);
+    color: map.get(map.get($colors, dark), text-primary);
+
+    &::placeholder {
+      color: map.get(map.get($colors, dark), text-muted);
+    }
+
+    &:focus {
+      border-color: map.get($colors, primary);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+    }
   }
 
   .section-description {

@@ -122,6 +122,12 @@ class Database {
           vectorStore.createIndex('sessionId', 'sessionId', { unique: false });
           console.log('Created vector_plugin table with indexes');
         }
+        
+        // 创建插件配置表
+        if (!db.objectStoreNames.contains('plugins')) {
+          const pluginsStore = db.createObjectStore('plugins', { keyPath: 'key' });
+          console.log('Created plugins table');
+        }
       };
       
       request.onsuccess = e => {
@@ -473,6 +479,71 @@ class Database {
         } else {
           resolve();
         }
+      };
+    });
+  }
+
+  // ==================== 插件配置管理 ====================
+
+  /**
+   * 保存插件配置
+   * @param {string} key - 插件配置键名
+   * @param {Object} config - 插件配置对象
+   * @returns {Promise<void>}
+   */
+  async savePluginConfig(key, config) {
+    return new Promise(resolve => {
+      this.getStore('plugins', 'readwrite').put({ key, ...config }).onsuccess = () => {
+        resolve();
+      };
+    });
+  }
+
+  /**
+   * 获取插件配置
+   * @param {string} key - 插件配置键名
+   * @returns {Promise<Object|null>}
+   */
+  async getPluginConfig(key) {
+    return new Promise(resolve => {
+      this.getStore('plugins', 'readonly').get(key).onsuccess = e => {
+        const result = e.target.result;
+        if (result) {
+          const { key: configKey, ...config } = result;
+          resolve(config);
+        } else {
+          resolve(null);
+        }
+      };
+    });
+  }
+
+  /**
+   * 获取所有插件配置
+   * @returns {Promise<Object>}
+   */
+  async getAllPluginConfigs() {
+    return new Promise(resolve => {
+      this.getStore('plugins', 'readonly').getAll().onsuccess = e => {
+        const configs = {};
+        e.target.result.forEach(item => {
+          const { key, ...config } = item;
+          configs[key] = config;
+        });
+        resolve(configs);
+      };
+    });
+  }
+
+  /**
+   * 删除插件配置
+   * @param {string} key - 插件配置键名
+   * @returns {Promise<void>}
+   */
+  async deletePluginConfig(key) {
+    return new Promise(resolve => {
+      this.getStore('plugins', 'readwrite').delete(key).onsuccess = () => {
+        resolve();
       };
     });
   }

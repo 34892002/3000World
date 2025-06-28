@@ -120,24 +120,42 @@ export function useAIApi() {
     }
   };
 
-  const createEmbeddings = async (input) => {
-    const model = "Qwen/Qwen3-Embedding-4B";
-    const token = "Bearer sk-t";
+  const createEmbeddings = async (input, pluginConfig = null) => {
+    // 如果没有传入配置，尝试从数据库获取
+    let config = pluginConfig;
+    if (!config) {
+      try {
+        // 动态导入数据库模块以避免循环依赖
+        const { useDatabase } = await import('@/composables/useDatabase.js');
+        const { getPluginConfig } = useDatabase();
+        config = await getPluginConfig('vector');
+      } catch (error) {
+        console.warn('无法获取向量插件配置，使用默认配置:', error);
+      }
+    }
+
+    const model = config.model;
+    const apiKey = config.apiKey;
+    const apiUrl = config.apiUrl;
+    
     const options = {
       method: "POST",
       headers: {
-        Authorization: token,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: `{"model":"${model}","input":"${input}"}`,
+      body: JSON.stringify({
+        model: model,
+        input: input
+      }),
     };
 
     try {
-      const response = await fetch("https://api.siliconflow.cn/v1/embeddings", options);
+      const response = await fetch(apiUrl, options);
       const data = await response.json();
       return data.data[0].embedding;
     } catch (err) {
-      console.error(err);
+      console.error('创建嵌入向量失败:', err);
       throw err;
     }
   };
