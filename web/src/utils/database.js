@@ -7,7 +7,7 @@ class Database {
   constructor() {
     this.db = null;
     this.dbName = null;
-    this.dbVersion = 4;
+    this.dbVersion = 5;
     this.dbPrefix = '3000World_';
   }
 
