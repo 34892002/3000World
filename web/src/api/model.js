@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { ChatOpenAI } from "@langchain/openai";
 // import { HumanMessage } from "@langchain/core/messages";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
+import { chatHistoryTool } from "@/models/tools/chatHistory";
 
 export function useAIApi() {
   const isLoading = ref(false);
@@ -99,7 +100,7 @@ export function useAIApi() {
     try {
       // 创建llm模型实例
       const llm = createChatModel(config);
-      const app = createReactAgent({ llm: llm, tools: [] });
+      const app = createReactAgent({ llm: llm, tools: [chatHistoryTool] });
       const response = await app.invoke({
         messages: [
           {
@@ -109,8 +110,9 @@ export function useAIApi() {
         ],
       });
       console.log("@LangChain Res:", response);
-      // 解析响应内容
-      const [HumanMessage, AIMessage] = response.messages;
+      // 解析响应内容，取最后一个数组
+      const messages = response.messages;
+      const AIMessage = messages[messages.length - 1];
       return AIMessage.content;
     } catch (error) {
       console.error("获取AI响应失败:", error.message);

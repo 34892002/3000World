@@ -346,8 +346,16 @@ const constructPrompt = async (targetCharacterName = null, sessionId) => {
     return keywords.some(keyword => convoText.toLowerCase().includes(keyword))
   })
 
+  // 检查是否有主角角色
+  const playerCharacter = dbCharacters.value.find(char => char.isPlayer)
+  const hasPlayerCharacter = !!playerCharacter
+
   // 构建场景角色部分
-  let prompt = '[System Note: This is a roleplay conversation.]\n\n== CHARACTERS IN THIS SCENE ==\n'
+  let prompt = `
+  == 系统提示 ==
+  - 这是一个角色扮演对话
+  == 这个场景中的人物 ==
+  `
   participants.forEach(p => {
     prompt += `Name: ${p.name}\nPersona: ${p.persona}\n\n`
   })
@@ -362,10 +370,6 @@ const constructPrompt = async (targetCharacterName = null, sessionId) => {
 
   // 添加对话历史
   prompt += '== RECENT CONVERSATION HISTORY ==\n'
-
-  // 检查是否有主角角色
-  const playerCharacter = dbCharacters.value.find(char => char.isPlayer)
-  const hasPlayerCharacter = !!playerCharacter
 
   // 根据是否有主角角色，调整历史消息的显示方式
   recentHistory.forEach(msg => {
@@ -408,16 +412,13 @@ const constructPrompt = async (targetCharacterName = null, sessionId) => {
     }
   }
 
-  // 添加语言指令
-  const langInstruction = locale.value === 'zhHans' ? '你必须只使用简体中文进行回复。' : 'You MUST respond only in English.'
-
+  // 严格规则
+  prompt += `\n[严格规则：玩家角色的发言包含过去式词汇（如：以前、上次、当初、想想、记得、想当初、还记得吗、之前）或 推测性提示词（如：你想想、是不是说过、应该提过），必须调用"chatHistory"工具搜索历史记录；`
   // 如果有主角，添加额外说明
   if (hasPlayerCharacter) {
-    prompt += `\n[System Note: 严格规则：玩家角色是 ${playerCharacter.name}，AI绝不能代替此角色说话或行动。剧情只能根据 ${playerCharacter.name} 的对话来推进。如果没有说明角色应该互相不认识，应该随着角色之间的对话来缓慢推进剧情。 ${roleplayInstruction} Final instruction: ${langInstruction}]`
-  } else {
-    prompt += `\n[System Note: ${roleplayInstruction} Final instruction: ${langInstruction}]`
+    prompt += `玩家角色是 ${playerCharacter.name}，AI绝不能代替此角色说话或行动。剧情只能根据 ${playerCharacter.name} 的对话来推进。如果没有说明角色应该互相不认识，应该随着角色之间的对话来缓慢推进剧情。`
   }
-
+  prompt += roleplayInstruction + ']'
   console.log('--- PROMPT SENT TO AI ---\n', prompt)
   return prompt
 }
