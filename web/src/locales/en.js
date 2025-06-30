@@ -23,6 +23,7 @@ export default {
             characters: 'Characters',
             worldbook: 'Worldbook',
             settings: 'Settings',
+            plugins: 'Plugins',
         },
         search: {
             private: 'Search private chats',
@@ -30,6 +31,7 @@ export default {
             characters: 'Search characters',
             worldbook: 'Search worldbook entries',
             settings: 'Search settings',
+            plugins: 'Search plugins',
             placeholder: 'Search...',
         },
         group: {
@@ -186,6 +188,49 @@ export default {
         deleteError: 'Failed to delete world',
         importSuccess: 'World imported successfully!',
         importError: 'Failed to import world'
+    },
+    plugins: {
+        vector: {
+            title: 'Vector Plugin',
+            description: 'Chat history vectorization and search',
+            status: {
+                disconnected: 'Disconnected',
+                connected: 'Connected',
+                connecting: 'Connecting',
+                error: 'Connection Error'
+            },
+            actions: {
+                connect: 'Connect Database',
+                disconnect: 'Disconnect',
+                vectorize: 'Vectorize Chat History',
+                search: 'Search',
+                clear: 'Clear Log'
+            },
+            stats: {
+                totalMessages: 'Total Messages',
+                vectorizedMessages: 'Vectorized Messages',
+                searchResults: 'Search Results'
+            },
+            messages: {
+                connectSuccess: 'Connected successfully',
+                connectFailed: 'Connection failed',
+                disconnected: 'Disconnected',
+                disconnectFailed: 'Disconnect failed',
+                initSuccess: 'Vector database initialized successfully',
+                initFailed: 'Vector database initialization failed',
+                vectorizingStart: 'Starting to vectorize {count} messages',
+                vectorizingComplete: 'Vectorization completed',
+                vectorizingFailed: 'Vectorization failed',
+                allVectorized: 'All messages are already vectorized',
+                searchComplete: 'Search completed, found {count} relevant records',
+                searchFailed: 'Search failed',
+                noResults: 'No relevant results found',
+                cleared: 'Cleared'
+            },
+            placeholders: {
+                search: 'Enter search keywords...'
+            }
+        }
     },
     api: {
         error: {

@@ -160,6 +160,25 @@
         </div>
       </div>
 
+      <!-- 插件列表 -->
+      <div v-if="activeTab === 'plugins'" class="content-section">
+        <div class="section-header">
+          <h4>{{ t('chat.tabs.plugins') }}</h4>
+        </div>
+        <div class="plugins-list">
+          <div class="plugin-item" @click="openVectorPlugin">
+            <div class="plugin-icon">🔍</div>
+            <div class="plugin-info">
+              <h5>{{ t('plugins.vector.title') }}</h5>
+              <p>{{ t('plugins.vector.description') }}</p>
+            </div>
+            <div class="plugin-status">
+              <span class="status-dot active"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 世界配置 -->
       <div v-if="activeTab === 'settings'" class="content-section">
         <div class="section-header">
@@ -239,6 +258,7 @@ const emit = defineEmits([
   'toggle-player-character',
   'open-world-config',
   'open-api-config',
+  'open-vector-plugin',
   'edit-group',
   'delete-group'
 ])
@@ -253,6 +273,7 @@ const navTabs = ref([
   { key: 'group', icon: '👥', label: 'chat.tabs.group', badge: null },
   { key: 'characters', icon: '🎭', label: 'chat.tabs.characters', badge: null },
   { key: 'worldbook', icon: '📚', label: 'chat.tabs.worldbook', badge: null },
+  { key: 'plugins', icon: '🔌', label: 'chat.tabs.plugins', badge: null },
   { key: 'settings', icon: '⚙️', label: 'chat.tabs.settings', badge: null }
 ])
 
@@ -265,6 +286,7 @@ const getSearchPlaceholder = () => {
     group: t('chat.search.group'),
     characters: t('chat.search.characters'),
     worldbook: t('chat.search.worldbook'),
+    plugins: t('chat.search.plugins'),
     settings: t('chat.search.settings')
   }
   return placeholders[activeTab.value] || t('chat.search.placeholder')
@@ -402,6 +424,13 @@ const openWorldConfig = () => {
  */
 const openApiConfig = () => {
   emit('open-api-config')
+}
+
+/**
+ * 打开向量插件
+ */
+const openVectorPlugin = () => {
+  emit('open-vector-plugin')
 }
 
 /**
@@ -1168,6 +1197,69 @@ const getTabBadgeCount = (tabKey) => {
     margin: 0;
     color: map.get(map.get($colors, light), text-secondary);
     @include text-shadow-light;
+  }
+
+  // 插件列表
+  .plugins-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .plugin-item {
+    @include card-style;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+  }
+
+  .plugin-icon {
+    font-size: 20px;
+    color: map.get(map.get($colors, light), text-primary);
+  }
+
+  .plugin-info {
+    flex: 1;
+
+    h5 {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 0 0 4px 0;
+      color: map.get(map.get($colors, light), text-primary);
+      @include text-shadow-light;
+    }
+
+    p {
+      font-size: 12px;
+      color: map.get(map.get($colors, light), text-secondary);
+      margin: 0;
+      line-height: 1.3;
+    }
+  }
+
+  .plugin-status {
+    display: flex;
+    align-items: center;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ccc;
+
+    &.active {
+      background: #28a745;
+      box-shadow: 0 0 4px rgba(40, 167, 69, 0.4);
+    }
   }
 
   // 设置列表

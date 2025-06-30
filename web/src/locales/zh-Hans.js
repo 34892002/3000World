@@ -23,6 +23,7 @@ export default {
             characters: '角色卡片',
             worldbook: '世界之书',
             settings: '世界设置',
+            plugins: '插件',
         },
         search: {
             private: '搜索私聊',
@@ -30,6 +31,7 @@ export default {
             characters: '搜索角色',
             worldbook: '搜索世界设定集条目',
             settings: '搜索设置',
+            plugins: '搜索插件',
             placeholder: '搜索...',
         },
         group: {
@@ -187,6 +189,49 @@ export default {
         deleteError: '删除世界失败',
         importSuccess: '世界导入成功！',
         importError: '导入世界失败'
+    },
+    plugins: {
+        vector: {
+            title: '向量插件',
+            description: '聊天记录向量化存储和搜索',
+            status: {
+                disconnected: '未连接',
+                connected: '已连接',
+                connecting: '连接中',
+                error: '连接错误'
+            },
+            actions: {
+                connect: '连接数据库',
+                disconnect: '断开连接',
+                vectorize: '向量化聊天记录',
+                search: '搜索',
+                clear: '清空日志'
+            },
+            stats: {
+                totalMessages: '总消息数',
+                vectorizedMessages: '已向量化消息',
+                searchResults: '搜索结果'
+            },
+            messages: {
+                connectSuccess: '连接成功',
+                connectFailed: '连接失败',
+                disconnected: '已断开连接',
+                disconnectFailed: '断开连接失败',
+                initSuccess: '向量数据库初始化成功',
+                initFailed: '初始化向量数据库失败',
+                vectorizingStart: '开始向量化 {count} 条消息',
+                vectorizingComplete: '向量化完成',
+                vectorizingFailed: '向量化失败',
+                allVectorized: '所有消息都已向量化',
+                searchComplete: '搜索完成，找到 {count} 条相关记录',
+                searchFailed: '搜索失败',
+                noResults: '未找到相关结果',
+                cleared: '已清除'
+            },
+            placeholders: {
+                search: '输入搜索关键词...'
+            }
+        }
     },
     api: {
         error: {

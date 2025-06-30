@@ -57,7 +57,7 @@
   "config": {
     "apiKey": "",
     "apiUrl": "https://text.pollinations.ai/openai",
-    "model": "deepseek"
+    "model": "openai"
   },
   "metadata": {
     "createdAt": "2024-06-15T08:00:00Z",

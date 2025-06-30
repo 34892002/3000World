@@ -19,6 +19,7 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     SettingsDialog: typeof import('./src/components/SettingsDialog.vue')['default']
     Sidebar: typeof import('./src/components/Sidebar.vue')['default']
+    VectorPlugin: typeof import('./src/components/VectorPlugin.vue')['default']
     WorldbookEditor: typeof import('./src/components/WorldbookEditor.vue')['default']
   }
 }
